@@ -273,17 +273,29 @@ def run_judge(sm: SectionMap, spec_version: str = DEFAULT_VERSION,
         )
     request = build_judge_request(sm, spec_version=spec_version, model=model)
     client = anthropic.Anthropic()
-    response = client.messages.create(
+    call = dict(
         model=request["model"],
         max_tokens=request["max_tokens"],
-        temperature=request["temperature"],
         system=request["system"],
         tools=[request["tool"]],
         tool_choice={"type": "tool", "name": _SUBMIT_TOOL_NAME},
         messages=[{"role": "user", "content": request["user_content"]}],
     )
+    # Newer models (e.g. claude-sonnet-5) deprecate the temperature knob and are
+    # deterministic without it; older ones honor temperature=0. Send it, and on
+    # the deprecation error retry without — recording which path was taken so the
+    # provenance stamp stays truthful.
+    temperature_applied: float | None = request["temperature"]
+    try:
+        response = client.messages.create(temperature=request["temperature"], **call)
+    except anthropic.BadRequestError as e:
+        if "temperature" not in str(e).lower():
+            raise
+        temperature_applied = None
+        response = client.messages.create(**call)
     tool_use = next(b for b in response.content if b.type == "tool_use")
     result = finalize_assessment(sm, tool_use.input["items"], request, mode="judge")
+    result["temperature"] = temperature_applied  # None => model is deterministic without the knob
     result["model"] = response.model  # resolved model id from the API, not the alias
     result["usage"] = {
         "input_tokens": response.usage.input_tokens,

@@ -3,3 +3,8 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 scratch/
+.keyfile
+.env
+*.key
+.DS_Store
+.Rhistory
