@@ -235,6 +235,32 @@ def test_supplement_flips_floor_leaf_and_source_tagged_evidence():
     assert result["supplement_status"] == "user_provided"
 
 
+def test_aggregate_corpus():
+    from target_mcp.corpus import aggregate_corpus
+    sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
+    request = build_judge_request(sm)
+    # paper A: all floor reported (pass); paper B: 7g.i partial
+    a = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
+    a["manuscript_id"] = "A"
+    vb = _full_verdicts(request, sm)
+    for v in vb:
+        if v["id"] == "6g":
+            v["verdict"] = "not_reported"
+            v.pop("evidence_quotes", None)
+    b = finalize_assessment(sm, vb, request, mode="judge")
+    b["manuscript_id"] = "B"
+    for x in (a, b):
+        x["supplement_status"] = "none_exists"
+    floors = [check_critical_floor(a), check_critical_floor(b)]
+    summ = aggregate_corpus([a, b], floors)
+    assert summ["n_papers"] == 2
+    assert summ["critical_floor_distribution"] == {"fail": 1, "pass": 1}
+    g6 = next(r for r in summ["per_leaf"] if r["id"] == "6g")
+    assert g6["reported"] == 1 and g6["not_reported"] == 1
+    assert g6["reported_rate"] == 0.5
+    assert summ["coverage"]["evidence_resolution_rate"] == 1.0
+
+
 def test_prompt_hash_stable():
     sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
     r1 = build_judge_request(sm)

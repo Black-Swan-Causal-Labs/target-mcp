@@ -14,6 +14,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from . import assess as _assess
+from . import corpus as _corpus
 from . import governance as _gov
 from . import retrieve as _retrieve
 from .ingest import (
@@ -218,6 +219,29 @@ def check_critical_floor(
             "Provide assessment_json, or a manuscript_id assessed this session."
         )
     return _gov.check_critical_floor(assessment)
+
+
+@mcp.tool()
+def aggregate_corpus(
+    assessments_json: str = "",
+    use_session: bool = False,
+) -> dict[str, Any]:
+    """Roll up many assessments into per-item completeness rates plus coverage
+    denominators (supplement-retrieval status, full-text availability, evidence-
+    resolution rate) and the critical-floor distribution. Pass a JSON array of
+    assessment objects as `assessments_json`, or use_session=true to aggregate
+    every assessment produced this session. The completeness rates are only as
+    valid as the sample and are not yet gold-standard calibrated."""
+    if assessments_json:
+        assessments = json.loads(assessments_json)
+    elif use_session:
+        assessments = list(_assessments.values())
+    else:
+        raise ValueError("Provide assessments_json, or set use_session=true.")
+    if not assessments:
+        raise ValueError("No assessments to aggregate.")
+    floors = [_gov.check_critical_floor(a) for a in assessments]
+    return _corpus.aggregate_corpus(assessments, floors)
 
 
 def main() -> None:
