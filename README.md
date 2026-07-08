@@ -21,31 +21,43 @@ Built and proven end-to-end:
   with own-words intent, verdict boundaries, signal terms, the 6x↔7x
   specification/emulation pairing, applicability rules, and a critical-floor
   overlay. Structurally validated on load (`spec.py`).
-- **Ingestion layer** — PDF/text → `SectionMap` with character-offset section
-  spans, protocol-table and flow-diagram detection, extractor version + text
-  hash stamps, and whitespace-insensitive quote→span resolution (`ingest.py`).
+- **Ingestion layer** — PDF/text/docx → `SectionMap` with character-offset,
+  **source-tagged** section spans (main vs `supplement:<file>`), protocol-table
+  and flow-diagram detection, extractor version + text hash stamps, and
+  whitespace-insensitive quote→span resolution. Supports **multi-document
+  bundles** (main text + supplements) via `build_bundle` (`ingest.py`).
+- **Retrieval layer** — fetch open-access articles by PMCID from Europe PMC:
+  JATS main text plus PMC-hosted supplementary files, merged into one bundle
+  (`retrieve.py`).
 - **Assessment layer** — batched, single-pass judging of all applicable
-  leaves. **Judge mode** makes the pinned model call server-side (temperature
-  0, prompt hash stamped); **scaffold mode** returns the exact prompt for a
-  calling agent and validates the verdicts it produces. Both share one
-  validation path that enforces leaf coverage, verdict vocabulary, and
-  mandatory verbatim evidence resolved to spans (`assess.py`).
-- **Governance layer** — `check_critical_floor`, a pure-logic pass/fail gate
-  over the non-waivable leaves (`governance.py`).
+  leaves. **Judge mode** makes the pinned model call server-side (prompt hash
+  stamped; temperature omitted for models that deprecate it); **scaffold mode**
+  returns the exact prompt for a calling agent and validates the verdicts it
+  produces. Both share one validation path that enforces leaf coverage, verdict
+  vocabulary, and mandatory verbatim evidence resolved to spans with a
+  `source_document` tag (`assess.py`).
+- **Governance layer** — `check_critical_floor`, a pure-logic gate over the
+  non-waivable leaves. A floor failure is reported as **`indeterminate — check
+  supplement`** rather than `fail` when no supplement was ingested
+  (`supplement_status` not in the confident set), because floor-critical
+  content routinely lives in supplements (`governance.py`).
 - **Composition layer** — FastMCP server exposing `get_checklist`,
-  `parse_manuscript`, `assess_manuscript`, `submit_scaffold_verdicts`, and
-  `check_critical_floor` (`server.py`).
+  `parse_manuscript` (accepts supplements), `parse_pmcid`, `assess_manuscript`,
+  `submit_scaffold_verdicts`, and `check_critical_floor` (`server.py`).
 
-Not yet built (see design doc §4): `assess_item`, `check_emulation_coherence`,
-`export_identifiability_spec`, `aggregate_corpus`, and the identifier-based
-(PMCID/DOI) ingestion path.
+Not yet built (see design doc): `assess_item`, `check_emulation_coherence`,
+`export_identifiability_spec`, `aggregate_corpus`, publisher-site supplement
+retrieval (beyond the PMC-OA tier), better table extraction, and the separate
+materiality/design-risk layer.
 
 ### Provenance stamped on every assessment
 
 `spec_version`, resolved `model` id, `temperature`, `prompt_hash`,
 `prompt_template_version`, `extractor_version`, `text_sha256`, `assessed_at`,
-and `full_text_available`. An evidence span is only meaningful alongside the
-extractor version and text hash, so all three travel together.
+`full_text_available`, `supplement_status`, and a per-source `documents` list;
+each evidence item carries its resolved span, section, and `source_document`.
+A span is only meaningful alongside the extractor version and text hash, so
+they travel together.
 
 ## Critical floor is a governance overlay, not the published guideline
 

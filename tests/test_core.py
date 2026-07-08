@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from target_mcp.spec import load_spec, floor_leaves, SpecError
-from target_mcp.ingest import parse_text, parse_pdf
+from target_mcp.ingest import parse_text, parse_pdf, build_bundle
 from target_mcp.assess import build_judge_request, finalize_assessment, VerdictValidationError
 from target_mcp.governance import check_critical_floor
 
@@ -114,17 +114,43 @@ def test_finalize_and_floor_pass():
     assert floor["status"] == "pass" and floor["pass"]
 
 
-def test_floor_fails_on_partial():
+def _partial_floor_result(supplement_status):
     sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
+    sm.supplement_status = supplement_status
     request = build_judge_request(sm)
     verdicts = _full_verdicts(request, sm)
     for v in verdicts:
         if v["id"] == "7g.i":
             v["verdict"] = "partial"
-    result = finalize_assessment(sm, verdicts, request, mode="judge")
+    return finalize_assessment(sm, verdicts, request, mode="judge")
+
+
+def test_floor_fails_on_partial_when_supplement_confident():
+    # A confident supplement state (here: none_exists) permits a real fail.
+    result = _partial_floor_result("none_exists")
     floor = check_critical_floor(result)
     assert floor["status"] == "fail"
     assert [f["id"] for f in floor["failed_leaves"]] == ["7g.i"]
+    assert floor["pending_supplement_leaves"] == []
+
+
+def test_floor_indeterminate_when_supplement_not_retrieved():
+    # Same verdicts, but no supplement checked -> cannot assert a failure.
+    for status in ("not_checked", "not_retrieved"):
+        result = _partial_floor_result(status)
+        floor = check_critical_floor(result)
+        assert floor["status"] == "indeterminate", status
+        assert [f["id"] for f in floor["pending_supplement_leaves"]] == ["7g.i"]
+        assert floor["failed_leaves"] == []
+
+
+def test_floor_pass_regardless_of_supplement_status():
+    # All floor leaves reported -> pass even if no supplement was checked.
+    sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
+    request = build_judge_request(sm)
+    result = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
+    assert result["supplement_status"] == "not_checked"
+    assert check_critical_floor(result)["status"] == "pass"
 
 
 def test_evidence_required_for_reported():
@@ -167,6 +193,46 @@ def test_abstract_only_gating():
     assert result["full_text_available"] is False
     floor = check_critical_floor(result)
     assert floor["status"] == "indeterminate"
+
+
+def test_build_bundle_source_tagging_and_resolution():
+    main = parse_text(FAKE_PAPER, manuscript_id="fake-1")
+    suppl_text = ("Supplementary Table S1. Target trial specification.\n"
+                  "Causal contrasts: intention-to-treat effect and per-protocol effect.\n"
+                  "Identifying assumption: conditional exchangeability given baseline covariates.")
+    bundle = build_bundle(main, [("suppl.pdf", suppl_text, 2)], supplement_status="user_provided")
+
+    assert bundle.supplement_status == "user_provided"
+    assert any(s.source == "supplement:suppl.pdf" for s in bundle.sections)
+    assert {d["kind"] for d in bundle.documents} == {"main", "supplement"}
+    # a quote unique to the supplement resolves and is tagged to its source
+    span = bundle.locate("intention-to-treat effect and per-protocol effect")
+    assert span is not None
+    assert bundle.source_at(span[0]) == "supplement:suppl.pdf"
+    # a quote from the main text still resolves and is tagged main
+    mspan = bundle.locate("adjusted for baseline confounders")
+    assert mspan is not None and bundle.source_at(mspan[0]) == "main"
+
+
+def test_supplement_flips_floor_leaf_and_source_tagged_evidence():
+    # Main text lacks the estimand statement; supplement supplies it.
+    main = parse_text(FAKE_PAPER, manuscript_id="fake-1")
+    suppl = "Causal contrasts of interest: the intention-to-treat effect of drug A versus drug B."
+    bundle = build_bundle(main, [("s1.pdf", suppl, 1)], supplement_status="user_provided")
+    request = build_judge_request(bundle)
+    verdicts = []
+    for lid in request["leaf_ids"]:
+        if lid == "6f":
+            verdicts.append({"id": lid, "verdict": "reported", "confidence": 0.9,
+                             "rationale": "estimand named in supplement",
+                             "evidence_quotes": ["the intention-to-treat effect of drug A versus drug B"]})
+        else:
+            verdicts.append({"id": lid, "verdict": "reported", "confidence": 0.8,
+                             "rationale": "x", "evidence_quotes": ["effect of initiating drug A versus drug B"]})
+    result = finalize_assessment(bundle, verdicts, request, mode="scaffold")
+    ev = next(i for i in result["items"] if i["id"] == "6f")["evidence"][0]
+    assert ev["resolved"] and ev["source_document"] == "supplement:s1.pdf"
+    assert result["supplement_status"] == "user_provided"
 
 
 def test_prompt_hash_stable():

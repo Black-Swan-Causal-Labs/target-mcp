@@ -110,10 +110,17 @@ def _submit_tool(leaf_ids: list[str]) -> dict[str, Any]:
 
 
 def _manuscript_block(sm: SectionMap) -> str:
-    parts = [f"MANUSCRIPT {sm.manuscript_id} (sections as extracted; "
-             f"extractor {sm.extractor_version})"]
+    has_suppl = any(s.source != "main" for s in sm.sections)
+    header = (f"MANUSCRIPT {sm.manuscript_id} (sections as extracted; "
+              f"extractor {sm.extractor_version})")
+    if has_suppl:
+        header += ("\nNOTE: Supplementary material is included below and is a "
+                   "legitimate reporting location under TARGET; evidence found "
+                   "there counts, but quote it verbatim from the supplement text.")
+    parts = [header]
     for s in sm.sections:
-        parts.append(f"\n<<SECTION {s.name}{' — ' + s.heading if s.heading else ''}>>\n"
+        tag = f"SECTION {s.name}" if s.source == "main" else f"{s.source}"
+        parts.append(f"\n<<{tag}{' — ' + s.heading if s.heading else ''}>>\n"
                      f"{sm.full_text[s.start:s.end]}")
     return "\n".join(parts)
 
@@ -219,7 +226,8 @@ def finalize_assessment(
                 span = sm.locate(q)
                 if span is None:
                     item["evidence"].append(
-                        {"quote": q, "span": None, "section": None, "resolved": False}
+                        {"quote": q, "span": None, "section": None,
+                         "source_document": None, "resolved": False}
                     )
                     unresolved.append(raw["id"])
                 else:
@@ -227,6 +235,7 @@ def finalize_assessment(
                         "quote": q,
                         "span": list(span),
                         "section": sm.section_at(span[0]),
+                        "source_document": sm.source_at(span[0]),
                         "resolved": True,
                     })
         items.append(item)
@@ -253,6 +262,8 @@ def finalize_assessment(
         "assessed_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "full_text_available": not request["excluded_leaves"],
         "excluded_leaves": request["excluded_leaves"],
+        "supplement_status": sm.supplement_status,
+        "documents": sm.documents,
         "items": items,
         "section_rollups": rollups,
         "unresolved_evidence_leaves": sorted(set(unresolved)),

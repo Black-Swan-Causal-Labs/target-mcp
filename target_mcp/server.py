@@ -15,7 +15,15 @@ from mcp.server.fastmcp import FastMCP
 
 from . import assess as _assess
 from . import governance as _gov
-from .ingest import SectionMap, parse_document
+from . import retrieve as _retrieve
+from .ingest import (
+    SUPPLEMENT_STATES,
+    SectionMap,
+    build_bundle,
+    extract_file,
+    parse_document,
+    parse_text,
+)
 from .spec import DEFAULT_VERSION, available_versions, load_spec
 
 mcp = FastMCP(
@@ -23,8 +31,11 @@ mcp = FastMCP(
     instructions=(
         "Operationalized TARGET reporting guideline (Cashin et al., JAMA/BMJ "
         "2025) for observational studies emulating a target trial. Typical "
-        "flow: parse_manuscript -> assess_manuscript -> check_critical_floor. "
-        "get_checklist introspects the encoded spec."
+        "flow: parse_manuscript (or parse_pmcid) -> assess_manuscript -> "
+        "check_critical_floor. Supplements matter: TTE methods (estimand, "
+        "identifying assumptions) often live in supplementary material, so a "
+        "floor failure without a supplement in hand is reported as "
+        "indeterminate, not fail. get_checklist introspects the encoded spec."
     ),
 )
 
@@ -52,21 +63,67 @@ def get_checklist(version: str = DEFAULT_VERSION) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
-def parse_manuscript(document: str, manuscript_id: str = "") -> dict[str, Any]:
-    """Parse a manuscript into a SectionMap with character-offset section
-    spans. `document` is a path to a PDF or text file, or the raw manuscript
-    text itself. Returns section boundaries, protocol-table and flow-diagram
-    detection, extractor version, and the text hash used to key later calls."""
-    sm = parse_document(document, manuscript_id or None)
-    _parsed[sm.text_sha256] = sm
+def _summarize(sm: SectionMap) -> dict[str, Any]:
     out = sm.to_dict(include_text=False)
     out["sections"] = [
-        {"name": s.name, "heading": s.heading, "start": s.start, "end": s.end,
-         "chars": s.end - s.start}
+        {"name": s.name, "heading": s.heading, "source": s.source,
+         "start": s.start, "end": s.end, "chars": s.end - s.start}
         for s in sm.sections
     ]
     return out
+
+
+@mcp.tool()
+def parse_manuscript(
+    document: str,
+    manuscript_id: str = "",
+    supplements: list[str] | None = None,
+    supplement_status: str = "",
+) -> dict[str, Any]:
+    """Parse a manuscript (and optional supplements) into a SectionMap with
+    character-offset, source-tagged section spans. `document` is a path to a
+    PDF/text file or the raw manuscript text. `supplements` is a list of file
+    paths (PDF/docx/text) to merge as supplementary material; when provided,
+    supplement_status defaults to 'user_provided'. Pass supplement_status=
+    'none_exists' to assert the article has no supplement (enables a confident
+    floor verdict). Returns source-tagged section boundaries, protocol-table
+    and flow-diagram detection over the combined text, supplement_status, and
+    the text hash used to key later calls."""
+    main = parse_document(document, manuscript_id or None)
+    if supplements:
+        docs = []
+        for path in supplements:
+            text, n_pages = extract_file(path)
+            docs.append((_path_name(path), text, n_pages))
+        status = supplement_status or "user_provided"
+        sm = build_bundle(main, docs, supplement_status=status)
+    else:
+        if supplement_status:
+            if supplement_status not in SUPPLEMENT_STATES:
+                raise ValueError(f"Unknown supplement_status {supplement_status!r}")
+            main.supplement_status = supplement_status
+        sm = main
+    _parsed[sm.text_sha256] = sm
+    return _summarize(sm)
+
+
+@mcp.tool()
+def parse_pmcid(pmcid: str, include_supplements: bool = True) -> dict[str, Any]:
+    """Retrieve an open-access article from Europe PMC by PMCID and parse it:
+    JATS main text plus (if available) PMC-hosted supplementary files, merged
+    into one source-tagged SectionMap. supplement_status is 'retrieved' when a
+    supplement was obtained, else 'not_retrieved' (a supplement may still exist
+    on the publisher site; absence of retrieval is not proof of absence).
+    Raises if no open-access full text is available. Returns the same summary
+    as parse_manuscript, including the text hash for assess_manuscript."""
+    sm = _retrieve.retrieve_bundle(pmcid, include_supplements=include_supplements)
+    _parsed[sm.text_sha256] = sm
+    return _summarize(sm)
+
+
+def _path_name(path: str) -> str:
+    from pathlib import Path
+    return Path(path).name
 
 
 def _resolve_section_map(document: str, manuscript_id: str) -> SectionMap:

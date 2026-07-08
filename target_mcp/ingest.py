@@ -46,12 +46,26 @@ _FLOW_DIAGRAM_RE = re.compile(
 )
 
 
+# Supplement retrieval / availability states, stamped on every SectionMap and
+# carried into gating. See docs/INGESTION-AND-SCORING-DESIGN.md sec 1.4.
+#   retrieved     — supplement fetched automatically and ingested
+#   user_provided — supplement supplied by hand and ingested
+#   none_exists   — the article is known to have no supplement
+#   not_retrieved — a supplement may exist but was not obtained
+#   not_checked   — single-document parse; supplement availability unknown
+SUPPLEMENT_STATES = ("retrieved", "user_provided", "none_exists", "not_retrieved", "not_checked")
+# States under which a floor failure can be asserted with confidence. Otherwise
+# a floor failure on a spec/assumption leaf is downgraded to indeterminate.
+SUPPLEMENT_CONFIDENT = ("retrieved", "user_provided", "none_exists")
+
+
 @dataclass
 class Section:
     name: str          # canonical section
     heading: str       # heading text as matched (or "" for front matter)
     start: int         # char offset into full_text, inclusive
     end: int           # exclusive
+    source: str = "main"  # "main" or "supplement:<filename>"
 
 
 @dataclass
@@ -66,6 +80,8 @@ class SectionMap:
     protocol_table_detected: bool = False
     flow_diagram_detected: bool = False
     warnings: list[str] = field(default_factory=list)
+    supplement_status: str = "not_checked"
+    documents: list[dict[str, Any]] = field(default_factory=list)  # per-source metadata
 
     def section_text(self, name: str) -> str:
         return "\n\n".join(
@@ -94,6 +110,12 @@ class SectionMap:
             if s.start <= offset < s.end:
                 return s.name
         return "other"
+
+    def source_at(self, offset: int) -> str:
+        for s in self.sections:
+            if s.start <= offset < s.end:
+                return s.source
+        return "main"
 
     def to_dict(self, include_text: bool = False) -> dict[str, Any]:
         d = asdict(self)
@@ -147,6 +169,29 @@ def parse_pdf(path: str | Path, manuscript_id: str | None = None) -> SectionMap:
 
 def parse_text(text: str, source: str = "<text>", manuscript_id: str = "manuscript") -> SectionMap:
     return _build_map(_normalize(text), source=source, manuscript_id=manuscript_id, n_pages=None)
+
+
+def extract_file(path: str | Path) -> tuple[str, int | None]:
+    """Extract raw (un-normalized) text from a supplement file by extension.
+    Returns (text, n_pages). PDF via pypdf, .docx via python-docx, else UTF-8."""
+    path = Path(path)
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        reader = PdfReader(str(path))
+        pages = [p.extract_text() or "" for p in reader.pages]
+        return "\n".join(pages), len(pages)
+    if suffix == ".docx":
+        try:
+            import docx  # python-docx
+        except ImportError as e:
+            raise RuntimeError("Reading .docx supplements requires python-docx") from e
+        d = docx.Document(str(path))
+        blocks = [p.text for p in d.paragraphs]
+        for table in d.tables:
+            for row in table.rows:
+                blocks.append("\t".join(c.text for c in row.cells))
+        return "\n".join(blocks), None
+    return path.read_text(encoding="utf-8", errors="replace"), None
 
 
 def parse_document(path_or_text: str, manuscript_id: str | None = None) -> SectionMap:
@@ -226,4 +271,73 @@ def _build_map(full_text: str, source: str, manuscript_id: str, n_pages: int | N
         protocol_table_detected=bool(_PROTOCOL_TABLE_RE.search(full_text)),
         flow_diagram_detected=bool(_FLOW_DIAGRAM_RE.search(full_text)),
         warnings=warnings,
+        supplement_status="not_checked",
+        documents=[{
+            "source": "main", "kind": "main", "filename": source,
+            "char_start": 0, "char_end": len(full_text),
+            "sha256": hashlib.sha256(full_text.encode("utf-8")).hexdigest(),
+            "n_pages": n_pages,
+        }],
+    )
+
+
+_SUPPLEMENT_SEP = "\n\n===== SUPPLEMENTARY MATERIAL: {name} =====\n\n"
+
+
+def build_bundle(
+    main: SectionMap,
+    supplements: list[tuple[str, str, int | None]],
+    supplement_status: str,
+) -> SectionMap:
+    """Merge a main-text SectionMap with supplement documents into one map.
+
+    `supplements` is a list of (filename, normalized_text, n_pages). Supplement
+    text is appended after the main text; each supplement becomes one Section
+    (name "supplement", source "supplement:<filename>") so evidence resolved
+    into it carries a truthful source locator. Structural detection (protocol
+    table, flow diagram) is recomputed over the combined text, because the
+    target-trial specification table commonly lives in the supplement.
+    """
+    if supplement_status not in SUPPLEMENT_STATES:
+        raise ValueError(f"Unknown supplement_status {supplement_status!r}")
+    if not supplements:
+        main.supplement_status = supplement_status
+        return main
+
+    parts = [main.full_text]
+    sections = [Section(s.name, s.heading, s.start, s.end, "main") for s in main.sections]
+    documents = list(main.documents)
+    cursor = len(main.full_text)
+    for filename, text, n_pages in supplements:
+        sep = _SUPPLEMENT_SEP.format(name=filename)
+        text = _normalize(text)
+        parts.append(sep)
+        parts.append(text)
+        seg_start = cursor + len(sep)
+        seg_end = seg_start + len(text)
+        src = f"supplement:{filename}"
+        sections.append(Section("supplement", f"SUPPLEMENT: {filename}",
+                                seg_start, seg_end, src))
+        documents.append({
+            "source": src, "kind": "supplement", "filename": filename,
+            "char_start": seg_start, "char_end": seg_end,
+            "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "n_pages": n_pages,
+        })
+        cursor = seg_end
+
+    full_text = "".join(parts)
+    return SectionMap(
+        source=main.source,
+        manuscript_id=main.manuscript_id,
+        extractor_version=EXTRACTOR_VERSION,
+        text_sha256=hashlib.sha256(full_text.encode("utf-8")).hexdigest(),
+        full_text=full_text,
+        sections=sections,
+        n_pages=main.n_pages,
+        protocol_table_detected=bool(_PROTOCOL_TABLE_RE.search(full_text)),
+        flow_diagram_detected=bool(_FLOW_DIAGRAM_RE.search(full_text)),
+        warnings=list(main.warnings),
+        supplement_status=supplement_status,
+        documents=documents,
     )
