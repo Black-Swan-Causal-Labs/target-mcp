@@ -1,0 +1,25 @@
+[project]
+name = "target-mcp"
+version = "0.1.0"
+description = "MCP server operationalizing the TARGET reporting guideline (Cashin et al., JAMA/BMJ 2025) as a deterministic, provenanced scoring engine for target trial emulation studies"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.0",
+    "pypdf>=5.0",
+    "pyyaml>=6.0",
+    "anthropic>=0.40",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+target-mcp = "target_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["target_mcp*"]
+
+[tool.setuptools.package-data]
+target_mcp = ["specs/*.yaml"]

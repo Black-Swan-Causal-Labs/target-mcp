@@ -1,0 +1,1077 @@
+# TARGET checklist — operationalized specification
+#
+# Re-encoding of item INTENT in original words, for machine-assisted
+# reporting-completeness assessment. This file does not reproduce the
+# published checklist wording and is not a substitute for it.
+#
+# Source guideline (attribution, per CC BY-ND 4.0 on the original checklist):
+#   Cashin AG, Hansford HJ, Hernán MA, et al. Transparent Reporting of
+#   Observational Studies Emulating a Target Trial: The TARGET Statement.
+#   JAMA 2025. doi:10.1001/jama.2025.13350
+#   Co-published: BMJ 2025;390:e087179. doi:10.1136/bmj-2025-087179
+#   Checklist: https://target-guideline.org/
+#
+# The 21 published items decompose into 39 scoreable leaf subitems
+# (items 1, 6 and 7 have lettered/roman subitems). The leaf is the unit
+# of assessment; `item_no` groups leaves back to the published item.
+
+spec_version: "target-0.1.0"
+guideline_scope: >
+  Observational studies of interventions explicitly emulating a parallel-group,
+  individually randomized target trial, with adjustment for baseline confounding.
+  Extensions (e.g. instrumental-variable emulations, cluster or crossover targets)
+  are outside the encoded scope; do not apply this spec to them.
+e_e_status: pending   # Explanation & Elaboration document not yet released.
+                      # Leaf-level `e_e_pending: true` marks entries whose
+                      # boundaries should be re-checked against the E&E.
+
+verdict_vocabulary:
+  - reported          # addressed with sufficient detail and clarity
+  - partial           # addressed, but missing required elements of the intent
+  - not_reported      # not addressed in manuscript or supplement
+  - not_applicable    # an applicability condition excludes the leaf
+evidence_policy: >
+  A verdict of `reported` or `partial` must carry at least one verbatim
+  evidence quote resolvable to a span in the source document. `not_reported`
+  and `not_applicable` carry no evidence spans; `not_applicable` must state
+  the applicability condition invoked.
+
+critical_floor:
+  provenance: bscl_overlay   # Black Swan Causal Labs governance overlay.
+                             # NOT part of the published guideline: TARGET
+                             # presents all 21 items as essential minimum
+                             # items with no tiering. This floor is this
+                             # instrument's non-waivable gate.
+  rationale: >
+    Three pillars: (1) the causal estimand is actually stated, in both the
+    target trial and its emulation (6f/7f); (2) time zero is defined so that
+    eligibility, assignment and start of follow-up align, controlling
+    immortal-time and related design biases (6d/7d); (3) identifying
+    assumptions, including baseline confounding due to lack of randomization,
+    are explicit (6g/7g.i). Because each pillar requires both the
+    specification leaf and its emulation leaf, the floor also enforces the
+    protocol-and-emulation pairing structure itself.
+  leaves: ["6d", "7d", "6f", "7f", "6g", "7g.i"]
+  pass_rule: >
+    Every floor leaf must be `reported` (not `partial`). Any other verdict on
+    any floor leaf fails the gate.
+
+items:
+  # ---------------------------------------------------------------- abstract
+  - id: "1a"
+    item_no: 1
+    label: "Abstract: study design identification and target trial summary"
+    section: abstract
+    element: design_identification
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: true
+    objective_prefilter: true
+    intent: >
+      The abstract lets a reader recognize, without reading further, that the
+      study analyzes observational data to emulate a hypothetical target
+      trial. It states the study objectives and gives a compact sketch of the
+      specified trial (who would be eligible, which strategies are compared,
+      what outcomes over what follow-up, which causal contrasts). Phrasing
+      that could be mistaken for an actual randomized trial (e.g. calling the
+      study an "emulated randomized trial" without the observational framing)
+      undermines this leaf.
+    signal_terms: [target trial, emulation, emulate, observational, trial emulation]
+    assessor_notes: >
+      reported: explicit target-trial-emulation identification AND objectives
+      AND a recognizable trial summary. partial: identification present but
+      objectives or the trial sketch missing, or ambiguous trial-like wording.
+      not_reported: no indication in the abstract that this is an emulation of
+      a target trial.
+    e_e_pending: true
+
+  - id: "1b"
+    item_no: 1
+    label: "Abstract: data sources"
+    section: abstract
+    element: data_sources
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: true
+    objective_prefilter: true
+    intent: >
+      The abstract names the data source(s) used for the emulation (e.g. a
+      specific registry, claims database, EHR network) and conveys that
+      treatment was not randomly allocated.
+    signal_terms: [database, registry, claims, electronic health records, cohort, data source]
+    assessor_notes: >
+      reported: source(s) identifiable by name or clear type. partial: only a
+      vague reference ("routinely collected data") with no identity, or the
+      non-randomized nature left implicit where it is not otherwise obvious.
+      not_reported: no data source information in the abstract.
+    e_e_pending: true
+
+  - id: "1c"
+    item_no: 1
+    label: "Abstract: assumptions, methods, findings, conclusions"
+    section: abstract
+    element: methods_findings_summary
+    role: null
+    paired_with: []
+    applicability: always
+    abstract_supportable: true
+    critical_floor: false
+    objective_prefilter: false
+    intent: >
+      The abstract concisely covers: the key assumptions required in the
+      absence of randomization (e.g. no unmeasured confounding) or other bias
+      sources, the statistical approach (including how confounding was
+      adjusted), the principal findings with point estimates and precision,
+      and the conclusions drawn.
+    signal_terms: [confounding, assumption, adjusted, hazard ratio, risk ratio, confidence interval]
+    assessor_notes: >
+      reported: all four ingredients (assumptions, methods, quantified
+      findings with precision, conclusions) present in compressed form.
+      partial: findings and conclusions present but assumptions or the
+      adjustment approach absent — the most common gap. not_reported: abstract
+      gives none of the methodological summary.
+    e_e_pending: true
+
+  # ------------------------------------------------------------ introduction
+  - id: "2"
+    item_no: 2
+    label: "Background and knowledge gap"
+    section: introduction
+    element: background
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The introduction lays out the scientific context and prior research,
+      making clear what is unknown and why this study is needed.
+    signal_terms: [background, previous studies, evidence, unknown, gap]
+    assessor_notes: >
+      reported: context plus an articulated gap. partial: context with no
+      identifiable gap statement, or vice versa. not_reported: neither.
+    e_e_pending: true
+
+  - id: "3"
+    item_no: 3
+    label: "Causal question summary"
+    section: introduction
+    element: causal_question
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The causal question the target trial protocol answers is summarized:
+      the target population (eligibility), the treatment strategies compared,
+      the outcomes, and the end of follow-up. A PICO-style summary satisfies
+      this if all components appear.
+    signal_terms: [causal question, effect of, whether, compared with, population]
+    assessor_notes: >
+      reported: all four components (population, strategies, outcomes,
+      follow-up horizon) recoverable from the introduction. partial: a causal
+      aim stated but with components missing. not_reported: no framing of the
+      question as causal, or no question stated. Judgment leaf — expect noisy
+      inter-rater agreement; adjudicate against components, not vibes.
+    e_e_pending: true
+
+  - id: "4"
+    item_no: 4
+    label: "Rationale for emulating a target trial"
+    section: introduction
+    element: rationale
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      The rationale itself is always applicable. The citation clause applies
+      only when the target trial was designed after a completed or ongoing
+      randomized trial; if no such trial informs the design, absence of
+      citations does not count against the leaf.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The report explains why this knowledge gap is addressed by emulating a
+      target trial with these particular data (rather than, e.g., waiting for
+      a trial or running one). Where an actual randomized trial informed the
+      target trial's design, that trial is cited (publication, registration,
+      or protocol).
+    signal_terms: [rationale, feasible, not feasible, randomized trial, unethical, emulate]
+    assessor_notes: >
+      reported: an explicit why-emulation-with-these-data argument; informing
+      RCT cited when one exists. partial: rationale implied but never argued,
+      or informing RCT evident (e.g. named target trial replicates a known
+      trial) but uncited. not_reported: no rationale.
+    e_e_pending: true
+
+  # ----------------------------------------------------------------- methods
+  - id: "5"
+    item_no: 5
+    label: "Data sources description"
+    section: methods
+    element: data_sources
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Core description always applies. The linkage/pooling clause applies only
+      when multiple sources are combined.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Each data source is cited and characterized on five axes: original
+      purpose (research vs routine care vs administration), type (EHR,
+      claims, registry, trial follow-up, etc.), geography, setting (hospital,
+      primary care, general population), and calendar period covered. When
+      sources are linked or pooled, the mechanism is described. Data quality
+      metrics (validity/reliability of key elements) are described where
+      available.
+    signal_terms: [data source, linkage, linked, claims, registry, electronic health records, study period]
+    assessor_notes: >
+      reported: all five axes for every source, plus linkage description when
+      relevant. partial: sources named but one or more axes missing, or
+      linkage mechanism absent when sources were combined. not_reported:
+      sources not identified.
+    e_e_pending: true
+
+  # --- item 6: target trial specification / item 7: emulation --------------
+  # Each 6x leaf specifies what the hypothetical trial protocol would say;
+  # its paired 7x leaf describes how that element was mapped to the data,
+  # including how variables were measured or ascertained. Score them
+  # independently; coherence between pair members is a separate check.
+
+  - id: "6a"
+    item_no: 6
+    label: "Specification: eligibility criteria"
+    section: methods
+    element: eligibility_criteria
+    role: specification
+    paired_with: ["7a"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The target trial's eligibility criteria are stated — the recruitment
+      conditions defining the target population (demographics, diagnostic
+      criteria, disease stage, treatment history, and similar).
+    signal_terms: [eligibility, eligible, inclusion, exclusion, criteria]
+    assessor_notes: >
+      reported: criteria stated as trial-protocol conditions (a protocol
+      table's specification column satisfies this). partial: population
+      described only loosely ("adults with X") without operative criteria.
+      not_reported: no eligibility specification distinguishable from the
+      data-operationalization (7a).
+    e_e_pending: true
+
+  - id: "7a"
+    item_no: 7
+    label: "Emulation: eligibility criteria operationalization"
+    section: methods
+    element: eligibility_criteria
+    role: emulation
+    paired_with: ["6a"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      How each eligibility criterion was ascertained in the data (e.g. ICD
+      code lists, lab thresholds, lookback windows), including any
+      imperfections where the data could not fully capture a criterion.
+    signal_terms: [ICD, codes, defined as, ascertained, lookback, washout]
+    assessor_notes: >
+      reported: ascertainment described criterion-by-criterion (or via cited
+      code lists/supplement), with mapping gaps acknowledged where present.
+      partial: operationalization for some criteria only, or code lists
+      referenced but nowhere provided. not_reported: no account of how
+      eligibility was determined in the data.
+    e_e_pending: true
+
+  - id: "6b"
+    item_no: 6
+    label: "Specification: treatment strategies"
+    section: methods
+    element: treatment_strategies
+    role: specification
+    paired_with: ["7b"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The compared treatment strategies are described in enough detail to be
+      implementable: agent/intervention, dose or intensity, route/mode,
+      frequency, duration, rules for initiation and discontinuation
+      (including any grace period after baseline and allowable
+      discontinuation reasons), permitted concomitant treatments, and
+      monitoring. If a comparator is "usual care" or non-initiation, what
+      that consists of is spelled out.
+    signal_terms: [treatment strategy, initiation, discontinuation, grace period, dose, usual care, comparator]
+    assessor_notes: >
+      reported: strategies implementable as written; vague comparators
+      defined. partial: strategies named with some operative detail but
+      missing elements a trial protocol would need (commonly: grace period,
+      discontinuation rules, or content of "usual care"). not_reported:
+      strategies only named.
+    e_e_pending: true
+
+  - id: "7b"
+    item_no: 7
+    label: "Emulation: treatment strategies operationalization"
+    section: methods
+    element: treatment_strategies
+    role: emulation
+    paired_with: ["6b"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      How the strategy components were identified in the data: drug/procedure
+      coding systems or dictionaries used (e.g. ATC codes), how exposure was
+      constructed from records (prescriptions, dispensings, procedures), and
+      what information determined adherence to the strategies.
+    signal_terms: [ATC, prescription, dispensing, exposure definition, adherence, days supply]
+    assessor_notes: >
+      reported: exposure construction and adherence determination described,
+      with coding sources. partial: exposure construction given but adherence
+      information absent where the contrasts require it. not_reported: no
+      data-level definition of the strategies.
+    e_e_pending: true
+
+  - id: "6c"
+    item_no: 6
+    label: "Specification: assignment procedures"
+    section: methods
+    element: assignment_procedures
+    role: specification
+    paired_with: ["7c"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: true
+    intent: >
+      The specification states that, in the target trial, eligible
+      individuals would be randomly assigned to the strategies, and that
+      participants may be aware of their assigned strategy (i.e. the
+      pragmatic target trial is unblinded). This is close to boilerplate but
+      anchors what the emulation must approximate.
+    signal_terms: [randomly assigned, randomization, random assignment, blinding, aware]
+    assessor_notes: >
+      reported: explicit random-assignment statement in the specification
+      (protocol table row counts). partial: randomization implied by the
+      target-trial framing but never stated as the assignment procedure.
+      not_reported: assignment unaddressed in the specification.
+    e_e_pending: true
+
+  - id: "7c"
+    item_no: 7
+    label: "Emulation: assignment operationalization (classification at time zero)"
+    section: methods
+    element: assignment_procedures
+    role: emulation
+    paired_with: ["6c"]
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. The cloning clause applies only when strategies are
+      indistinguishable at the start of follow-up.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      How individuals were classified into a strategy at the start of
+      follow-up using the data (e.g. by a new prescription). When strategies
+      cannot be told apart at time zero, the classification approach (e.g.
+      cloning with censoring) is reported. (The claim that adjustment for
+      baseline confounders emulates randomization belongs to 7g.i, not here.)
+    signal_terms: [classified, assigned, new user, initiator, cloning, clones]
+    assessor_notes: >
+      reported: classification rule at start of follow-up explicit; cloning
+      or equivalent described when strategies overlap at time zero. partial:
+      classification described but its timing relative to time zero unclear.
+      not_reported: no account of how individuals ended up in analysis arms.
+    e_e_pending: true
+
+  - id: "6d"
+    item_no: 6
+    label: "Specification: follow-up (time zero and end)"
+    section: methods
+    element: follow_up
+    role: specification
+    paired_with: ["7d"]
+    applicability: always
+    critical_floor: true
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The specification makes clear that follow-up would begin at assignment
+      to the strategies — the point where eligibility, assignment, and start
+      of follow-up coincide (time zero) — and states when follow-up would
+      end for each outcome and for what reasons (administrative end, death,
+      loss, other events).
+    signal_terms: [time zero, baseline, start of follow-up, end of follow-up, assignment]
+    assessor_notes: >
+      reported: both the start-at-assignment statement and the end-of-follow-
+      up definition present. partial: one of the two present. not_reported:
+      follow-up timing unspecified. Floor leaf: this is the anchor for
+      immortal-time control.
+    e_e_pending: true
+
+  - id: "7d"
+    item_no: 7
+    label: "Emulation: follow-up operationalization (time zero in the data)"
+    section: methods
+    element: follow_up
+    role: emulation
+    paired_with: ["6d"]
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. The which-eligible-time clause applies only to
+      comparisons against non-initiation/usual care, where a "start" is not
+      naturally defined for the untreated group.
+    critical_floor: true
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The emulation confirms follow-up starts when individuals are classified
+      into strategies, and describes how the end of follow-up was ascertained
+      in the data (e.g. deaths via a mortality registry, disenrollment). For
+      comparisons against non-initiation or usual care, it reports which
+      eligible time(s) served as start of follow-up for the comparator group
+      (all eligible times, the first, or a random one).
+    signal_terms: [time zero, index date, followed from, censored, end of follow-up, mortality registry]
+    assessor_notes: >
+      reported: data-level time zero and end-of-follow-up ascertainment both
+      explicit, including the comparator-start rule when applicable. partial:
+      index date defined but end-of-follow-up ascertainment or the
+      comparator-start rule missing. not_reported: neither defined. Floor
+      leaf: misalignment here is the immortal-time signature.
+    e_e_pending: true
+
+  - id: "6e"
+    item_no: 6
+    label: "Specification: outcomes"
+    section: methods
+    element: outcomes
+    role: specification
+    paired_with: ["7e"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The outcomes are described including how and when they would be
+      measured in the target trial, with the main outcome identified when
+      several are studied.
+    signal_terms: [outcome, primary outcome, endpoint, measured, assessed]
+    assessor_notes: >
+      reported: outcomes with measurement timing/approach in trial terms.
+      partial: outcomes named without measurement description. not_reported:
+      outcomes not specified apart from their data operationalization (7e).
+    e_e_pending: true
+
+  - id: "7e"
+    item_no: 7
+    label: "Emulation: outcome ascertainment"
+    section: methods
+    element: outcomes
+    role: emulation
+    paired_with: ["6e"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      How each outcome was ascertained in the data — code lists or
+      algorithms, differences from how the target trial would have measured
+      it — and whether the ascertainment approach has been validated (own or
+      cited validation).
+    signal_terms: [outcome definition, algorithm, validated, positive predictive value, codes]
+    assessor_notes: >
+      reported: ascertainment algorithm given, validation status addressed.
+      partial: algorithm given, validation unaddressed; or outcome codes
+      referenced but not provided anywhere. not_reported: no ascertainment
+      description.
+    e_e_pending: true
+
+  - id: "6f"
+    item_no: 6
+    label: "Specification: causal contrasts and effect measures"
+    section: methods
+    element: causal_contrasts
+    role: specification
+    paired_with: ["7f"]
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. The competing-events clause applies only when
+      competing events exist for an outcome; the both-measures clause applies
+      when both relative and absolute measures are meaningful.
+    critical_floor: true
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The causal contrasts of interest are stated (typically the effect of
+      assignment — intention-to-treat — and/or the per-protocol effect of
+      adhering to the strategies), with the effect measures that would
+      quantify them (relative and absolute where applicable). When competing
+      events exist, their definition and role in the contrast (e.g. treated
+      as censoring vs part of a composite vs total-effect framing) is
+      specified.
+    signal_terms: [intention-to-treat, per-protocol, causal contrast, estimand, risk ratio, risk difference, competing]
+    assessor_notes: >
+      reported: named contrast(s) plus effect measures; competing-event
+      handling specified when relevant. partial: contrast named but measures
+      or competing-event handling missing. not_reported: no contrast is
+      distinguishable — analysis jumps straight to a model coefficient. Floor
+      leaf: pillar 1 (stated estimand).
+    e_e_pending: true
+
+  - id: "7f"
+    item_no: 7
+    label: "Emulation: causal contrasts operationalization"
+    section: methods
+    element: causal_contrasts
+    role: emulation
+    paired_with: ["6f"]
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. Competing-events clause as in 6f.
+    critical_floor: true
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The observational analog of each contrast is described: e.g. effect of
+      assignment operationalized as comparison of groups as classified at
+      time zero regardless of subsequent adherence; per-protocol effect
+      defined via the strategy definitions with censoring/adjustment for
+      deviation. Competing events: how ascertained and confirmation they
+      enter the contrast as in the target trial.
+    signal_terms: [analog, as classified, regardless of adherence, per-protocol, artificial censoring]
+    assessor_notes: >
+      reported: each specified contrast has an explicit observational
+      counterpart. partial: analog stated for some contrasts only, or
+      adherence handling in the per-protocol analog undefined. not_reported:
+      no mapping from contrast to analysis. Floor leaf.
+    e_e_pending: true
+
+  - id: "6g"
+    item_no: 6
+    label: "Specification: identifying assumptions and related variables"
+    section: methods
+    element: identifying_assumptions
+    role: specification
+    paired_with: ["7g.i", "7g.ii"]
+    applicability: always
+    critical_floor: true
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      For each causal estimand, the assumptions that would link it to the
+      trial data are described — e.g. what randomization buys for the
+      intention-to-treat effect, the additional exchangeability assumptions
+      needed under loss to follow-up or competing events, and the further
+      assumptions (no unmeasured baseline or time-varying confounding) a
+      per-protocol effect would need — together with the variables those
+      assumptions involve.
+    signal_terms: [identifying assumptions, exchangeability, positivity, consistency, unmeasured confounding, loss to follow-up]
+    assessor_notes: >
+      reported: assumptions articulated per estimand with the associated
+      variables. partial: assumptions gestured at generically (a lone "we
+      assume no unmeasured confounding") without per-estimand structure or
+      variables. not_reported: no identification discussion in the
+      specification. Floor leaf: pillar 3.
+    e_e_pending: true
+
+  - id: "7g.i"
+    item_no: 7
+    label: "Emulation: identifying assumptions per estimand, incl. baseline confounding"
+    section: methods
+    element: identifying_assumptions
+    role: emulation
+    paired_with: ["6g"]
+    applicability: always
+    critical_floor: true
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Because assignment was not randomized, identification in the emulation
+      requires conditional exchangeability given baseline covariates (no
+      unmeasured confounding conditional on them). The report describes and
+      justifies the chosen baseline variables, and states any additional
+      exchangeability assumptions used to handle loss to follow-up,
+      nonadherence (per-protocol estimands), or competing events, with their
+      variable sets.
+    signal_terms: [conditional exchangeability, baseline confounders, confounding adjustment, no unmeasured confounding, censoring weights]
+    assessor_notes: >
+      reported: baseline-confounding assumption explicit with a justified
+      variable choice; additional assumptions covered where the estimand
+      needs them. partial: confounder list given without the assumption or
+      justification connecting it to identification, or post-baseline
+      assumptions missing where required. not_reported: identification never
+      addressed. Floor leaf: pillar 3, emulation side.
+    e_e_pending: true
+
+  - id: "7g.ii"
+    item_no: 7
+    label: "Emulation: operationalization of assumption-related variables"
+    section: methods
+    element: identifying_assumptions
+    role: emulation
+    paired_with: ["6g"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      How the variables invoked by the identifying assumptions (baseline
+      confounders; variables handling censoring, adherence, competing events)
+      were defined and ascertained in the data — measurement windows, codes,
+      derivations.
+    signal_terms: [covariates defined, measured at baseline, assessed during, codes, lookback]
+    assessor_notes: >
+      reported: definitions/ascertainment for the assumption-related variable
+      sets (a supplement table satisfies this). partial: definitions for some
+      variables only, or lists without ascertainment detail. not_reported:
+      variables named nowhere defined.
+    e_e_pending: true
+
+  - id: "6h"
+    item_no: 6
+    label: "Specification: data analysis plan"
+    section: methods
+    element: analysis_plan
+    role: specification
+    paired_with: ["7h.i", "7h.ii"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Per causal estimand, the analysis the target trial would run: the
+      estimation procedures, statistical modeling assumptions (functional
+      forms, transformations, product terms), handling of missing data and
+      of selection bias from loss to follow-up, confounder-adjustment methods
+      for per-protocol effects, and planned subgroup or sensitivity analyses.
+      Each estimand's plan reported separately.
+    signal_terms: [analysis plan, model, missing data, multiple imputation, subgroup, functional form]
+    assessor_notes: >
+      reported: per-estimand procedures with modeling assumptions and
+      missing-data approach. partial: one plan given without per-estimand
+      separation, or missing-data handling absent. not_reported: no analysis
+      plan in the specification.
+    e_e_pending: true
+
+  - id: "7h.i"
+    item_no: 7
+    label: "Emulation: analysis procedures as modified for observational data"
+    section: methods
+    element: analysis_plan
+    role: emulation
+    paired_with: ["6h"]
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. Sequential-trials and cloning clauses apply only
+      when those designs are used.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The modifications the emulation required relative to the specified
+      plan: confounding-adjustment machinery (weighting, standardization,
+      matching, modeling), accommodation of eligibility at multiple times
+      (sequential trials), handling of strategies indistinguishable at time
+      zero (cloning), missing-data methods, with all models described.
+      Naming the statistical software, version, and key packages supports
+      reproducibility.
+    signal_terms: [inverse probability, weighting, propensity, matching, standardization, pooled logistic, software, R package]
+    assessor_notes: >
+      reported: adjustment method and models fully described per estimand;
+      software named. partial: method named without model detail (e.g.
+      "propensity-score matching" with no model covariates/specification),
+      or software absent with everything else present counts as reported —
+      software is supportive, not required. not_reported: analysis methods
+      unstated.
+    e_e_pending: true
+
+  - id: "7h.ii"
+    item_no: 7
+    label: "Emulation: sensitivity and additional analyses (plan)"
+    section: methods
+    element: analysis_plan
+    role: emulation
+    paired_with: ["6h"]
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The additional analyses conducted to probe sensitivity of results to
+      operationalization choices, identifying assumptions, and analytic
+      decisions — with a rationale for which biases each probes (e.g.
+      negative outcome/population controls, quantitative bias analysis,
+      alternative exposure definitions or grace periods).
+    signal_terms: [sensitivity analysis, negative control, quantitative bias analysis, E-value, alternative definition]
+    assessor_notes: >
+      reported: sensitivity analyses described with what-bias-this-probes
+      rationale. partial: analyses listed without rationale. not_reported: no
+      sensitivity analyses described anywhere (verdict interacts with item
+      14; score 7h.ii on the methods-side description).
+    e_e_pending: true
+
+  # ----------------------------------------------------------------- results
+  - id: "8"
+    item_no: 8
+    label: "Participant selection and flow"
+    section: results
+    element: participant_flow
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. Unique-vs-analyzed counts apply only under
+      sequential trials or cloning.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: true
+    intent: >
+      Numbers assessed for eligibility, eligible, and classified into each
+      strategy are reported; a flow diagram is strongly recommended (its
+      absence alone does not fail the leaf if the numbers are in text).
+      Where individuals contribute to multiple trials or strategies
+      (sequential trials, cloning), both unique individuals and totals
+      analyzed (person-trials, clones) are given.
+    signal_terms: [flow diagram, assessed for eligibility, excluded, person-trials, clones, Figure 1]
+    assessor_notes: >
+      reported: the three counts (assessed/eligible/assigned per strategy)
+      recoverable, with exclusion reasons; unique-vs-analyzed disambiguated
+      when applicable. partial: final analytic counts only, selection path
+      opaque. not_reported: no selection numbers.
+    e_e_pending: true
+
+  - id: "9"
+    item_no: 9
+    label: "Baseline characteristics by strategy"
+    section: results
+    element: baseline_data
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. Before/after-adjustment presentation applies when
+      weighting/standardization/matching is used; the combined-then-by-
+      strategy presentation applies under cloning.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The distribution of relevant baseline characteristics is shown by
+      strategy. When adjustment reshapes the population (weights, matching,
+      standardization), showing characteristics before and after adjustment
+      lets readers judge achieved comparability. Under cloning, baseline can
+      be shown for everyone combined plus by strategy at first divergence.
+    signal_terms: [Table 1, baseline characteristics, standardized difference, weighted, matched]
+    assessor_notes: >
+      reported: baseline table by strategy; post-adjustment comparability
+      shown when adjustment is of the reshaping kind. partial: baseline
+      overall only, or by strategy without post-adjustment view when clearly
+      warranted. not_reported: no baseline distribution.
+    e_e_pending: true
+
+  - id: "10"
+    item_no: 10
+    label: "Follow-up duration and reasons for end"
+    section: results
+    element: follow_up_results
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. Censoring-reason counts apply when the analysis
+      censors individuals.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Length of follow-up is summarized and the reasons follow-up ended are
+      described, for each strategy and causal contrast; analyses with
+      censoring report numbers censored by reason (loss, nonadherence, etc.)
+      per strategy.
+    signal_terms: [median follow-up, person-years, censored, loss to follow-up, discontinued]
+    assessor_notes: >
+      reported: duration summary plus end-of-follow-up/censoring accounting
+      by strategy. partial: duration without the reasons accounting, or
+      pooled across strategies. not_reported: follow-up experience absent.
+    e_e_pending: true
+
+  - id: "11"
+    item_no: 11
+    label: "Missing data frequency"
+    section: results
+    element: missing_data
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Always applicable in intent; by-strategy breakdown applies when
+      strategies exist for the variable in question. If the data genuinely
+      have no missingness in the variables used, an explicit statement to
+      that effect satisfies the leaf.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      The extent of missing data in every variable used to operationalize
+      the protocol (confounders, outcomes, other relevant variables) is
+      reported, by strategy where applicable.
+    signal_terms: [missing, missingness, complete case, imputed, imputation]
+    assessor_notes: >
+      reported: per-variable missingness (table or supplement) or an explicit
+      no-missing-data statement. partial: missingness acknowledged or handled
+      (e.g. imputation described) without frequencies. not_reported: silence
+      on missing data.
+    e_e_pending: true
+
+  - id: "12"
+    item_no: 12
+    label: "Outcome frequency or distribution by strategy"
+    section: results
+    element: outcome_results
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Each outcome's occurrence is described by strategy: for time-to-event
+      outcomes, event counts and estimated absolute risks over time with
+      precision; for other outcomes, appropriate descriptives (proportions,
+      medians/IQR, means/SD).
+    signal_terms: [events, cumulative incidence, absolute risk, number of events, incidence rate]
+    assessor_notes: >
+      reported: descriptive outcome occurrence per strategy with precision
+      where estimated. partial: effect estimates presented without the
+      underlying occurrence data (counts/risks). not_reported: neither.
+    e_e_pending: true
+
+  - id: "13"
+    item_no: 13
+    label: "Effect estimates with precision"
+    section: results
+    element: effect_estimates
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Always applicable. Both-absolute-and-relative applies when both are
+      meaningful for the outcome type.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      For each causal contrast, the effect estimate is reported with a
+      measure of precision, on both relative and absolute scales when
+      applicable.
+    signal_terms: [hazard ratio, risk ratio, risk difference, confidence interval, 95% CI]
+    assessor_notes: >
+      reported: estimate + precision per contrast, both scales when
+      applicable. partial: estimates without precision, or relative-only when
+      absolute measures were feasible and meaningful. not_reported: no effect
+      estimates.
+    e_e_pending: true
+
+  - id: "14"
+    item_no: 14
+    label: "Results of sensitivity and additional analyses"
+    section: results
+    element: additional_analyses
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Applicable when additional/sensitivity analyses were planned or
+      conducted (see 7h.ii). If none were conducted, score not_applicable
+      here and let 7h.ii carry the deficiency.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Results of all analyses probing sensitivity to operationalization,
+      assumption, and analysis choices are reported (not merely mentioned),
+      enabling comparison against the primary results.
+    signal_terms: [sensitivity analyses, robust, consistent with, supplementary results, eTable]
+    assessor_notes: >
+      reported: numerical results for every described sensitivity analysis
+      (supplement acceptable). partial: results for some, or only a
+      qualitative "results were similar". not_reported: sensitivity analyses
+      described but no results.
+    e_e_pending: true
+
+  # -------------------------------------------------------------- discussion
+  - id: "15"
+    item_no: 15
+    label: "Interpretation of key findings"
+    section: discussion
+    element: interpretation
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Key findings are concisely summarized with respect to the causal
+      questions and interpreted in light of their precision and of the
+      identifying assumptions required for a causal reading.
+    signal_terms: [our findings, suggest, causal, interpretation, consistent with]
+    assessor_notes: >
+      reported: interpretation explicitly conditioned on assumptions and
+      precision. partial: findings restated with generic interpretation, no
+      link to assumptions. not_reported: no interpretation. Judgment leaf —
+      expect noisier agreement.
+    e_e_pending: true
+
+  - id: "16"
+    item_no: 16
+    label: "Limitations: emulation fidelity and assumption plausibility"
+    section: discussion
+    element: limitations
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: false
+    intent: >
+      Limitations are discussed specifically in TTE terms: which protocol
+      components the data could not operationalize well and why (coverage,
+      validity, quality), the plausibility of the identifying assumptions —
+      above all no unmeasured baseline confounding — and what the
+      sensitivity analyses imply about these threats.
+    signal_terms: [limitations, unmeasured confounding, residual confounding, misclassification, could not]
+    assessor_notes: >
+      reported: mapping imperfections and assumption plausibility both
+      addressed, tied to sensitivity findings where they exist. partial:
+      generic observational-study caveats without emulation-specific content.
+      not_reported: no limitations discussion.
+    e_e_pending: true
+
+  # --------------------------------------------------------- other information
+  - id: "17"
+    item_no: 17
+    label: "Ethics approval"
+    section: other
+    element: ethics
+    role: null
+    paired_with: []
+    applicability: conditional
+    applicability_rule: >
+      Approval numbers apply if relevant; a documented exemption/waiver
+      satisfies the leaf.
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: true
+    intent: >
+      The approving research board or ethics committee is identified, with
+      approval numbers where relevant (or the exemption stated).
+    signal_terms: [ethics, institutional review board, IRB, approval, exempt, waiver]
+    assessor_notes: >
+      reported: board named (number when relevant) or exemption stated.
+      partial: approval asserted without naming the body. not_reported: no
+      ethics statement.
+    e_e_pending: true
+
+  - id: "18"
+    item_no: 18
+    label: "Registration"
+    section: other
+    element: registration
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: true
+    intent: >
+      Whether the study protocol was registered and, if so, when and where
+      (registry and identifier). An explicit not-registered statement
+      satisfies the leaf; silence does not.
+    signal_terms: [registered, registration, protocol, OSF, EU PAS, ENCePP, clinicaltrials.gov]
+    assessor_notes: >
+      reported: registration status explicit (either direction), with
+      registry + ID when registered. partial: registration mentioned without
+      locator. not_reported: silence.
+    e_e_pending: true
+
+  - id: "19"
+    item_no: 19
+    label: "Sharing of data, code, and materials"
+    section: other
+    element: sharing
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: true
+    intent: >
+      The report states whether data, analytic code, and/or other materials
+      are accessible, and where/how (repository, on-request process,
+      restrictions). An explicit not-available statement satisfies the leaf.
+    signal_terms: [data availability, code, github, repository, upon request, data sharing]
+    assessor_notes: >
+      reported: availability status for data AND code with access route (or
+      explicit unavailability). partial: data addressed but code silent, or
+      vice versa. not_reported: no availability statement.
+    e_e_pending: true
+
+  - id: "20"
+    item_no: 20
+    label: "Funding and role of funders"
+    section: other
+    element: funding
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: true
+    intent: >
+      Funding sources are disclosed together with the funders' role (or
+      explicit absence of a role) in design, conduct, and reporting.
+    signal_terms: [funding, funded by, grant, role of the funder, sponsor]
+    assessor_notes: >
+      reported: sources plus role statement. partial: sources without role.
+      not_reported: no funding statement.
+    e_e_pending: true
+
+  - id: "21"
+    item_no: 21
+    label: "Conflicts of interest"
+    section: other
+    element: conflicts
+    role: null
+    paired_with: []
+    applicability: always
+    critical_floor: false
+    abstract_supportable: false
+    objective_prefilter: true
+    intent: >
+      Conflicts of interest and financial disclosures are stated for all
+      authors (including an explicit none-declared).
+    signal_terms: [conflicts of interest, competing interests, disclosures, declare]
+    assessor_notes: >
+      reported: a disclosure statement covering all authors. partial:
+      disclosures for some authors or an ambiguous blanket statement.
+      not_reported: no disclosure statement.
+    e_e_pending: true
