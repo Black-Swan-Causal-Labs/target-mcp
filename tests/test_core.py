@@ -261,6 +261,44 @@ def test_aggregate_corpus():
     assert summ["coverage"]["evidence_resolution_rate"] == 1.0
 
 
+def test_validation_harness():
+    from target_mcp.validate import build_coding_sheet, compare
+    sm = parse_text(FAKE_PAPER, manuscript_id="P1")
+    request = build_judge_request(sm)
+    instr = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
+    instr["manuscript_id"] = "P1"
+
+    # blind coding sheet: no instrument verdicts leaked, one row per scored leaf
+    sheet = build_coding_sheet([instr], blind=True)
+    assert len(sheet) == 1 and sheet[0]["manuscript_id"] == "P1"
+    assert all("_instrument_verdict" not in r for r in sheet[0]["items"])
+    assert {r["id"] for r in sheet[0]["items"]} == set(request["leaf_ids"])
+
+    # a human coding that agrees on all floor leaves except 6f (human: partial)
+    human_items = []
+    for i in instr["items"]:
+        v = i["verdict"]
+        if i["id"] == "6f":
+            v = "partial"
+        human_items.append({"id": i["id"], "verdict": v, "note": "coded"})
+    human = {"manuscript_id": "P1", "spec_version": instr["spec_version"], "items": human_items}
+
+    result = compare([instr], [human])
+    assert result["n_papers"] == 1
+    assert result["n_disagreements"] == 1
+    d = result["disagreements"][0]
+    assert d["id"] == "6f" and d["instrument_verdict"] == "reported" and d["human_verdict"] == "partial"
+    # disagreement carries the instrument's evidence span for adjudication
+    assert d["instrument_evidence"] and d["instrument_evidence"][0]["resolved"]
+    # 6f leaf: instrument=reported, human=partial -> a false positive for "reported"
+    row6f = next(r for r in result["per_leaf"] if r["id"] == "6f")
+    assert row6f["binary_reported"]["fp"] == 1
+    assert row6f["raw_agreement"] == 0.0
+    # a leaf both coded 'reported' shows perfect agreement
+    row6d = next(r for r in result["per_leaf"] if r["id"] == "6d")
+    assert row6d["raw_agreement"] == 1.0
+
+
 def test_prompt_hash_stable():
     sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
     r1 = build_judge_request(sm)

@@ -17,6 +17,7 @@ from . import assess as _assess
 from . import corpus as _corpus
 from . import governance as _gov
 from . import retrieve as _retrieve
+from . import validate as _validate
 from .ingest import (
     SUPPLEMENT_STATES,
     SectionMap,
@@ -242,6 +243,43 @@ def aggregate_corpus(
         raise ValueError("No assessments to aggregate.")
     floors = [_gov.check_critical_floor(a) for a in assessments]
     return _corpus.aggregate_corpus(assessments, floors)
+
+
+@mcp.tool()
+def build_coding_sheet(
+    assessments_json: str = "",
+    use_session: bool = False,
+    blind: bool = True,
+) -> list[dict[str, Any]]:
+    """Emit blank per-paper coding sheets for human gold-standard coding: one
+    row per applicable leaf with its intent and verdict boundaries and empty
+    verdict/evidence/note fields. blind=true (default) withholds the
+    instrument's verdict so coders are not anchored — use blind coding for the
+    primary reference standard. Pass assessments_json or use_session=true."""
+    if assessments_json:
+        assessments = json.loads(assessments_json)
+    elif use_session:
+        assessments = list(_assessments.values())
+    else:
+        raise ValueError("Provide assessments_json, or set use_session=true.")
+    return _validate.build_coding_sheet(assessments, blind=blind)
+
+
+@mcp.tool()
+def validate_against_gold(
+    instrument_json: str,
+    human_codings_json: str,
+) -> dict[str, Any]:
+    """Compute per-leaf agreement between instrument assessments and human
+    gold-standard codings: raw agreement, Cohen's kappa, Gwet's AC1, and binary
+    (reported-vs-rest) sensitivity/specificity with the human coding as the
+    reference standard, plus a span-keyed disagreement list for adjudication.
+    Agreement is reported PER LEAF; the pooled figure is orientation only. Both
+    arguments are JSON arrays of assessment/coding objects sharing manuscript
+    ids and spec version."""
+    instrument = json.loads(instrument_json)
+    human = json.loads(human_codings_json)
+    return _validate.compare(instrument, human)
 
 
 def main() -> None:
