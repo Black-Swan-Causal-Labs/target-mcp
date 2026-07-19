@@ -32,12 +32,15 @@ mcp = FastMCP(
     "target-checklist",
     instructions=(
         "Operationalized TARGET reporting guideline (Cashin et al., JAMA/BMJ "
-        "2025) for observational studies emulating a target trial. Typical "
-        "flow: parse_manuscript (or parse_pmcid) -> assess_manuscript -> "
-        "check_critical_floor. Supplements matter: TTE methods (estimand, "
-        "identifying assumptions) often live in supplementary material, so a "
-        "floor failure without a supplement in hand is reported as "
-        "indeterminate, not fail. get_checklist introspects the encoded spec."
+        "2025) for observational studies emulating a target trial. Primary "
+        "flow: parse_manuscript (the manuscript you were given) -> "
+        "assess_manuscript -> check_critical_floor. parse_pmcid is for the "
+        "corpus/batch case (no file in hand) or to auto-fetch an open-access "
+        "paper's supplement. Supplements matter: TTE methods (estimand, "
+        "identifying assumptions) often live in supplementary material, so pass "
+        "the supplement to parse_manuscript when you have it — a floor failure "
+        "without a supplement in hand is reported as indeterminate, not fail. "
+        "get_checklist introspects the encoded spec."
     ),
 )
 
@@ -82,15 +85,20 @@ def parse_manuscript(
     supplements: list[str] | None = None,
     supplement_status: str = "",
 ) -> dict[str, Any]:
-    """Parse a manuscript (and optional supplements) into a SectionMap with
-    character-offset, source-tagged section spans. `document` is a path to a
-    PDF/text file or the raw manuscript text. `supplements` is a list of file
-    paths (PDF/docx/text) to merge as supplementary material; when provided,
+    """PRIMARY entry point: parse a manuscript you were given (and its
+    supplements) into a SectionMap with character-offset, source-tagged section
+    spans. This is the usual door — most of the time you have the paper as a
+    file, not a PMCID. `document` is a path to a PDF/text/docx file or the raw
+    manuscript text. `supplements` is a list of file paths (PDF/docx/text) to
+    merge as supplementary material — PASS IT WHEN YOU HAVE IT: TTE methods
+    (estimand, identifying assumptions) frequently live in a supplementary
+    protocol table, and without a supplement the floor verdicts on those leaves
+    come back indeterminate rather than fail. When supplements are provided,
     supplement_status defaults to 'user_provided'. Pass supplement_status=
     'none_exists' to assert the article has no supplement (enables a confident
-    floor verdict). Returns source-tagged section boundaries, protocol-table
-    and flow-diagram detection over the combined text, supplement_status, and
-    the text hash used to key later calls."""
+    floor verdict). Returns source-tagged section boundaries, protocol-table and
+    flow-diagram detection over the combined text, supplement_status, and the
+    text hash used to key later calls."""
     main = parse_document(document, manuscript_id or None)
     if supplements:
         docs = []
@@ -111,9 +119,12 @@ def parse_manuscript(
 
 @mcp.tool()
 def parse_pmcid(pmcid: str, include_supplements: bool = True) -> dict[str, Any]:
-    """Retrieve an open-access article from Europe PMC by PMCID and parse it:
-    JATS main text plus (if available) PMC-hosted supplementary files, merged
-    into one source-tagged SectionMap. supplement_status is 'retrieved' when a
+    """CONVENIENCE / BATCH entry point: retrieve an open-access article from
+    Europe PMC by PMCID and parse it. Reach for this in the corpus/batch case
+    (no file in hand) or to auto-fetch an open-access paper's supplement; for a
+    single manuscript you were given, use parse_manuscript instead. Fetches JATS
+    main text plus (if available) PMC-hosted supplementary files, merged into
+    one source-tagged SectionMap. supplement_status is 'retrieved' when a
     supplement was obtained, else 'not_retrieved' (a supplement may still exist
     on the publisher site; absence of retrieval is not proof of absence).
     Raises if no open-access full text is available. Returns the same summary

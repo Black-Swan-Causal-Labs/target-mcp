@@ -296,38 +296,54 @@ make the gate **indeterminate** rather than falsely failing it.
 
 ## 7. Tool surface (MCP)
 
-The FastMCP server registers five tools:
+The FastMCP server registers nine tools.
+
+**Primary manuscript flow** — the everyday path, when you have been given a
+paper as a file:
 
 | Tool | Input | Returns |
 |------|-------|---------|
-| `get_checklist` | `version` (optional) | The full encoded spec: 39 leaves with intent, assessor notes, signal terms, pairing, applicability, the critical-floor overlay, verdict vocabulary, and evidence policy. Introspection over the instrument. |
-| `parse_manuscript` | `document` (PDF/text path or raw text), `manuscript_id` (optional) | SectionMap summary: section boundaries with offsets and sizes, protocol-table/flow-diagram flags, extractor version, and the `text_sha256` used to key later calls. |
+| `parse_manuscript` | `document` (PDF/text/docx path or raw text), `manuscript_id`, `supplements` (file paths), `supplement_status` | **Primary entry point.** SectionMap summary: source-tagged section boundaries (main vs `supplement:<file>`) with offsets, protocol-table/flow-diagram flags, `supplement_status`, and the `text_sha256` used to key later calls. Pass the supplement when you have it — floor-critical content often lives there. |
 | `assess_manuscript` | `document`, `manuscript_id`, `spec_version`, `mode` (`judge`/`scaffold`), `model` | Judge mode: the full validated, provenance-stamped 39-leaf matrix. Scaffold mode: the exact prompt, tool schema, and prompt hash for the caller to execute. |
+| `check_critical_floor` | `assessment_json` **or** `manuscript_id` | Pass / fail / indeterminate over the floor leaves. `indeterminate` when a floor leaf failed but no supplement was ingested to check. |
+
+The recommended flow is therefore `parse_manuscript` → `assess_manuscript` →
+`check_critical_floor`.
+
+**Supporting tools:**
+
+| Tool | Input | Returns |
+|------|-------|---------|
+| `get_checklist` | `version` (optional) | The full encoded spec: 39 leaves with intent, assessor notes, signal terms, pairing, applicability, the critical-floor overlay, verdict vocabulary, and evidence policy. |
+| `parse_pmcid` | `pmcid`, `include_supplements` | Convenience/batch entry: fetch an open-access article from Europe PMC (JATS main text + PMC-hosted supplements). For the corpus case or to auto-grab an OA supplement — not the path for a manuscript you were handed. |
 | `submit_scaffold_verdicts` | `text_sha256`, `items_json`, `spec_version`, `model` | Scaffold-mode completion: validates caller-produced verdicts through the same path judge mode uses and returns the stamped assessment. |
-| `check_critical_floor` | `assessment_json` **or** `manuscript_id` | Binary pass / fail / indeterminate over the floor leaves, with the failed leaves and their verdicts. |
+| `aggregate_corpus` | `assessments_json` **or** `use_session` | Per-item completeness rates plus coverage denominators (supplement status, full-text, evidence resolution) and the critical-floor distribution. |
+| `build_coding_sheet` | `assessments_json`/`use_session`, `blind` | Blank, blind per-leaf coding sheets for human gold-standard coders (instrument verdicts withheld by default). |
+| `validate_against_gold` | `instrument_json`, `human_codings_json` | Per-leaf agreement (raw, Cohen's κ, Gwet's AC1, sensitivity/specificity) with a span-keyed disagreement list. |
 
 Parsed manuscripts are cached in-process by text hash, and assessments by
 manuscript id, so `assess_manuscript` and `check_critical_floor` can reference
 prior work by id instead of re-supplying documents.
 
-The recommended flow is `parse_manuscript` → `assess_manuscript` →
-`check_critical_floor`.
-
 ### 7.1 What it can and cannot do today
 
-**Can:** introspect the encoded 39-leaf spec; ingest a PDF or text manuscript
-into an offset-addressed SectionMap with protocol-table and flow-diagram
-detection; score all applicable leaves in one batched pass in either judge or
-scaffold mode with mandatory evidence resolved to spans and full provenance;
-apply full-text gating; and run the critical-floor gate.
+**Can:** introspect the encoded 39-leaf spec; ingest a PDF/text/docx manuscript
+and its supplements into an offset-addressed, source-tagged SectionMap with
+protocol-table and flow-diagram detection; fetch open-access papers by PMCID
+(JATS + PMC-hosted supplements) for the batch case; score all applicable leaves
+in one batched pass in either judge or scaffold mode with mandatory evidence
+resolved to spans and full provenance; apply full-text and supplement gating;
+run the critical-floor gate; roll up many assessments into per-item completeness
+rates (`aggregate_corpus`); and validate against human gold-standard coding
+(`build_coding_sheet`, `validate_against_gold`).
 
 **Not yet (deferred per the build order):** `assess_item` (single-leaf
 re-checks); `check_emulation_coherence` (cross-element specification↔emulation
 coherence); `export_identifiability_spec` (the DAG Studio identifiability
-bridge); `aggregate_corpus` (per-item completeness roll-ups across many
-assessments); identifier-based ingestion (PMCID/DOI resolution and full-text
-retrieval); and the deterministic objective pre-filters (the
-`objective_prefilter` flags are encoded but not yet wired into scoring).
+bridge); publisher-site supplement retrieval beyond the PMC open-access tier;
+better protocol-table extraction; the separate materiality/design-risk layer;
+and the deterministic objective pre-filters (the `objective_prefilter` flags are
+encoded but not yet wired into scoring).
 
 ---
 

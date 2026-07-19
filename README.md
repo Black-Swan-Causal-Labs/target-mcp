@@ -26,9 +26,11 @@ Built and proven end-to-end:
   and flow-diagram detection, extractor version + text hash stamps, and
   whitespace-insensitive quote→span resolution. Supports **multi-document
   bundles** (main text + supplements) via `build_bundle` (`ingest.py`).
-- **Retrieval layer** — fetch open-access articles by PMCID from Europe PMC:
-  JATS main text plus PMC-hosted supplementary files, merged into one bundle
-  (`retrieve.py`).
+- **Retrieval layer** — the corpus/batch and convenience path: fetch
+  open-access articles by PMCID from Europe PMC (JATS main text plus PMC-hosted
+  supplementary files, merged into one bundle). Use this when there is no file
+  in hand or to auto-fetch an OA paper's supplement; for a manuscript you were
+  given, ingest the file directly (`retrieve.py`).
 - **Assessment layer** — batched, single-pass judging of all applicable
   leaves. **Judge mode** makes the pinned model call server-side (prompt hash
   stamped; temperature omitted for models that deprecate it); **scaffold mode**
@@ -41,14 +43,23 @@ Built and proven end-to-end:
   supplement`** rather than `fail` when no supplement was ingested
   (`supplement_status` not in the confident set), because floor-critical
   content routinely lives in supplements (`governance.py`).
-- **Composition layer** — FastMCP server exposing `get_checklist`,
-  `parse_manuscript` (accepts supplements), `parse_pmcid`, `assess_manuscript`,
-  `submit_scaffold_verdicts`, and `check_critical_floor` (`server.py`).
+- **Corpus & validation layers** — `aggregate_corpus` rolls many assessments
+  into per-item completeness rates with coverage denominators (`corpus.py`);
+  `validate.py` provides blind human coding-sheet generation and per-leaf
+  agreement (raw, Cohen's κ, Gwet's AC1, sensitivity/specificity) against a
+  gold standard.
+- **Composition layer** — FastMCP server (`server.py`) exposing nine tools.
+  The primary manuscript flow is **`parse_manuscript`** (parse the file you
+  were given, with `supplements=` when available) → **`assess_manuscript`** →
+  **`check_critical_floor`**. Supporting tools: `parse_pmcid` (corpus/batch or
+  OA-supplement fetch), `submit_scaffold_verdicts` (scaffold-mode completion),
+  `get_checklist` (introspect the spec), `aggregate_corpus`,
+  `build_coding_sheet`, and `validate_against_gold`.
 
 Not yet built (see design doc): `assess_item`, `check_emulation_coherence`,
-`export_identifiability_spec`, `aggregate_corpus`, publisher-site supplement
-retrieval (beyond the PMC-OA tier), better table extraction, and the separate
-materiality/design-risk layer.
+`export_identifiability_spec`, publisher-site supplement retrieval (beyond the
+PMC-OA tier), better table extraction, and the separate materiality/design-risk
+layer.
 
 ### Provenance stamped on every assessment
 
