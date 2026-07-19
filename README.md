@@ -31,13 +31,15 @@ Built and proven end-to-end:
   supplementary files, merged into one bundle). Use this when there is no file
   in hand or to auto-fetch an OA paper's supplement; for a manuscript you were
   given, ingest the file directly (`retrieve.py`).
-- **Assessment layer** — batched, single-pass judging of all applicable
-  leaves. **Judge mode** makes the pinned model call server-side (prompt hash
-  stamped; temperature omitted for models that deprecate it); **scaffold mode**
-  returns the exact prompt for a calling agent and validates the verdicts it
-  produces. Both share one validation path that enforces leaf coverage, verdict
-  vocabulary, and mandatory verbatim evidence resolved to spans with a
-  `source_document` tag (`assess.py`).
+- **Assessment layer** — batched, single-pass scoring of all applicable leaves.
+  **Scaffold mode (default)** is the path for reviewing a publication: the agent
+  already in the loop is the scorer, so the server returns the exact prompt +
+  schema for it to run, then validates the verdicts it submits. **Judge mode**
+  is for the headless/batch case (no LLM in the loop) — the server makes its own
+  pinned model call so a corpus run is reproducible and caller-independent. Both
+  share one validation path that enforces leaf coverage, verdict vocabulary, and
+  mandatory verbatim evidence resolved to spans with a `source_document` tag
+  (`assess.py`).
 - **Governance layer** — `check_critical_floor`, a pure-logic gate over the
   non-waivable leaves. A floor failure is reported as **`indeterminate — check
   supplement`** rather than `fail` when no supplement was ingested

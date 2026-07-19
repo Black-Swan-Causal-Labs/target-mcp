@@ -221,15 +221,18 @@ runs.
 
 ### 5.2 Two modes, one validation path
 
-- **Judge mode (default).** The server makes the model call itself with a
+- **Scaffold mode (default).** The path for reviewing a publication. The server
+  returns the exact system prompt, tool schema, manuscript payload, and prompt
+  hash for the agent already in the loop to execute, then validates the verdicts
+  that agent produces. In an agentic setup the reviewing Claude *is* the scorer,
+  so making the server spin up a second, separate model call is redundant — the
+  server's job is to supply the rubric and validate the output.
+- **Judge mode.** For the headless/batch case where no LLM is in the loop (e.g.
+  a corpus run driven by a script). The server makes its own model call with a
   **pinned model** (default `claude-sonnet-5`, overridable via
-  `TARGET_JUDGE_MODEL`), **temperature 0**, and a bounded output budget. It
-  requires `ANTHROPIC_API_KEY`. This is the reproducible-instrument path: a
-  corpus result does not vary with the caller.
-- **Scaffold mode.** The server returns the exact system prompt, tool schema,
-  manuscript payload, and prompt hash for an orchestrating agent to execute,
-  then validates the verdicts that agent produces. This suits the interactive
-  case where a calling Claude is already reasoning and token reuse matters.
+  `TARGET_JUDGE_MODEL`; temperature omitted for models that deprecate it),
+  requiring `ANTHROPIC_API_KEY`, so a corpus result is reproducible and does not
+  vary with the caller. Overkill when an agent is already reviewing the paper.
 
 Both modes converge on **one validation function** (`finalize_assessment`), so
 verdicts are held to identical rules regardless of who produced them.

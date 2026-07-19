@@ -32,15 +32,19 @@ mcp = FastMCP(
     "target-checklist",
     instructions=(
         "Operationalized TARGET reporting guideline (Cashin et al., JAMA/BMJ "
-        "2025) for observational studies emulating a target trial. Primary "
-        "flow: parse_manuscript (the manuscript you were given) -> "
-        "assess_manuscript -> check_critical_floor. parse_pmcid is for the "
-        "corpus/batch case (no file in hand) or to auto-fetch an open-access "
-        "paper's supplement. Supplements matter: TTE methods (estimand, "
+        "2025) for reviewing whether an observational target-trial-emulation "
+        "study reports what the checklist requires. Primary flow to review a "
+        "publication: parse_manuscript (the paper you were given, with its "
+        "supplement) -> assess_manuscript (mode='scaffold' default: it returns "
+        "the assessment prompt for YOU to run) -> submit_scaffold_verdicts (to "
+        "validate your verdicts and resolve evidence to spans) -> "
+        "check_critical_floor. Supplements matter: TTE methods (estimand, "
         "identifying assumptions) often live in supplementary material, so pass "
         "the supplement to parse_manuscript when you have it — a floor failure "
         "without a supplement in hand is reported as indeterminate, not fail. "
-        "get_checklist introspects the encoded spec."
+        "get_checklist introspects the encoded spec. (parse_pmcid and "
+        "assess_manuscript mode='judge' exist for headless corpus/batch runs, "
+        "not the interactive review case.)"
     ),
 )
 
@@ -151,17 +155,25 @@ def assess_manuscript(
     document: str,
     manuscript_id: str = "",
     spec_version: str = DEFAULT_VERSION,
-    mode: str = "judge",
+    mode: str = "scaffold",
     model: str = _assess.DEFAULT_JUDGE_MODEL,
 ) -> dict[str, Any]:
     """Assess a manuscript against all applicable TARGET leaves in one batched
     pass. `document` is a path, raw text, or a text_sha256 returned by
-    parse_manuscript. mode='judge' (default) makes the pinned-model call
-    server-side (requires ANTHROPIC_API_KEY) and returns the full verdict
-    matrix with resolved evidence spans and provenance stamps.
-    mode='scaffold' returns the exact judge prompt, tool schema, and prompt
-    hash for the calling agent to execute; submit the verdicts via
-    submit_scaffold_verdicts to get the same validated, stamped result."""
+    parse_manuscript.
+
+    mode='scaffold' (default) is the path for reviewing a publication: you are
+    the LLM in the loop, so the server returns the exact assessment prompt, the
+    tool schema, and a prompt hash for YOU to execute — read the manuscript
+    against the rubric, produce the verdicts, then call submit_scaffold_verdicts
+    to validate them and get the stamped result (evidence resolved to spans,
+    provenance, ready for check_critical_floor).
+
+    mode='judge' is for the headless/batch case where no LLM is in the loop
+    (e.g. a corpus run). The server makes its own pinned-model API call
+    (requires ANTHROPIC_API_KEY) so scoring is reproducible and caller-
+    independent, and returns the full verdict matrix directly. Overkill when an
+    agent is already reviewing the paper interactively."""
     sm = _resolve_section_map(document, manuscript_id)
     if mode == "scaffold":
         request = _assess.build_judge_request(sm, spec_version=spec_version, model=model)
@@ -170,9 +182,8 @@ def assess_manuscript(
             "text_sha256": sm.text_sha256,
             "instructions": (
                 "Run the system prompt against user_content with the given "
-                "tool forced, temperature and model as specified. Then call "
-                "submit_scaffold_verdicts with the tool-call `items` array "
-                "and this text_sha256."
+                "tool forced. Then call submit_scaffold_verdicts with the "
+                "tool-call `items` array and this text_sha256."
             ),
             **{k: request[k] for k in (
                 "model", "temperature", "max_tokens", "system", "tool",
