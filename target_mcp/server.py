@@ -1,15 +1,18 @@
 """MCP composition layer: the TARGET tool surface.
 
-Vertical-slice tools: get_checklist, parse_manuscript, assess_manuscript,
-check_critical_floor. Parsed manuscripts are cached in-process by text hash
-so assess/check calls can reference a prior parse instead of re-supplying
-the document.
+Nine tools. The interactive review flow is parse_manuscript -> assess_manuscript
+(scaffold, default) -> submit_scaffold_verdicts -> check_critical_floor. Parsed
+manuscripts are cached in-process by text hash so downstream calls can reference
+a prior parse by hash instead of re-supplying the document.
+
+Tools take structured inputs (arrays/objects) and declare structured output
+schemas. Output TypedDicts are `total=False` so they document the result shape
+without forcing every optional field to be present on every return path.
 """
 
 from __future__ import annotations
 
-import json
-from typing import Any
+from typing import Any, TypedDict
 
 from mcp.server.fastmcp import FastMCP
 
@@ -52,8 +55,88 @@ _parsed: dict[str, SectionMap] = {}          # text_sha256 -> SectionMap
 _assessments: dict[str, dict[str, Any]] = {} # manuscript_id -> latest assessment
 
 
+# --- Output schemas (total=False: document the shape, tolerate optional keys) ---
+
+class ChecklistDoc(TypedDict, total=False):
+    spec_version: str
+    available_versions: list
+    guideline_scope: str
+    e_e_status: str
+    verdict_vocabulary: list
+    evidence_policy: str
+    critical_floor: dict
+    leaf_count: int
+    items: list
+
+
+class SectionMapSummary(TypedDict, total=False):
+    source: str
+    manuscript_id: str
+    extractor_version: str
+    text_sha256: str
+    full_text: str
+    sections: list
+    n_pages: int | None
+    protocol_table_detected: bool
+    flow_diagram_detected: bool
+    warnings: list
+    supplement_status: str
+    documents: list
+
+
+class AssessmentResult(TypedDict, total=False):
+    manuscript_id: str
+    spec_version: str
+    mode: str
+    model: str
+    temperature: float | None
+    prompt_hash: str
+    prompt_template_version: str
+    extractor_version: str
+    text_sha256: str
+    assessed_at: str
+    full_text_available: bool
+    excluded_leaves: list
+    supplement_status: str
+    documents: list
+    items: list
+    section_rollups: dict
+    unresolved_evidence_leaves: list
+    usage: dict
+
+
+# functional form so the JSON-RPC "pass" key can be declared (reserved word)
+FloorResult = TypedDict("FloorResult", {
+    "manuscript_id": str, "spec_version": str, "floor_provenance": str,
+    "floor_leaves": list, "status": str, "pass": bool, "supplement_status": str,
+    "failed_leaves": list, "unassessed_leaves": list, "pending_supplement_leaves": list,
+}, total=False)
+
+
+class CorpusSummary(TypedDict, total=False):
+    spec_version: str
+    n_papers: int
+    coverage: dict
+    critical_floor_distribution: dict | None
+    per_leaf: list
+    lowest_reported_leaves: list
+    note: str
+
+
+class ValidationResult(TypedDict, total=False):
+    spec_version: str
+    papers_compared: list
+    n_papers: int
+    leaves_with_data: int
+    per_leaf: list
+    pooled_binary_reported: dict | None
+    pooled_raw_agreement: float | None
+    disagreements: list
+    n_disagreements: int
+
+
 @mcp.tool()
-def get_checklist(version: str = DEFAULT_VERSION) -> dict[str, Any]:
+def get_checklist(version: str = DEFAULT_VERSION) -> ChecklistDoc:
     """Return the encoded TARGET checklist spec: 39 scoreable leaf subitems
     (grouped into the 21 published items) with intent, assessor notes,
     signal terms, pairing links, applicability rules, and the critical-floor
@@ -88,7 +171,7 @@ def parse_manuscript(
     manuscript_id: str = "",
     supplements: list[str] | None = None,
     supplement_status: str = "",
-) -> dict[str, Any]:
+) -> SectionMapSummary:
     """PRIMARY entry point: parse a manuscript you were given (and its
     supplements) into a SectionMap with character-offset, source-tagged section
     spans. This is the usual door — most of the time you have the paper as a
@@ -122,7 +205,7 @@ def parse_manuscript(
 
 
 @mcp.tool()
-def parse_pmcid(pmcid: str, include_supplements: bool = True) -> dict[str, Any]:
+def parse_pmcid(pmcid: str, include_supplements: bool = True) -> SectionMapSummary:
     """CONVENIENCE / BATCH entry point: retrieve an open-access article from
     Europe PMC by PMCID and parse it. Reach for this in the corpus/batch case
     (no file in hand) or to auto-fetch an open-access paper's supplement; for a
@@ -201,15 +284,17 @@ def assess_manuscript(
 @mcp.tool()
 def submit_scaffold_verdicts(
     text_sha256: str,
-    items_json: str,
+    items: list[dict[str, Any]],
     spec_version: str = DEFAULT_VERSION,
     model: str = "unspecified",
-) -> dict[str, Any]:
+) -> AssessmentResult:
     """Scaffold-mode completion: validate verdicts produced by the calling
     agent against the same rules judge mode enforces (leaf coverage, verdict
     vocabulary, mandatory verbatim evidence quotes resolved to spans) and
-    return the stamped assessment. `items_json` is the JSON array from the
-    forced tool call. `model` should identify the model that produced them."""
+    return the stamped assessment. `items` is the verdict array from the forced
+    tool call — one object per leaf with `id`, `verdict`, `confidence`,
+    `rationale`, and (for reported/partial) `evidence_quotes`. `model` should
+    identify the model that produced them."""
     sm = _parsed.get(text_sha256)
     if sm is None:
         raise ValueError(
@@ -217,50 +302,47 @@ def submit_scaffold_verdicts(
             "parse_manuscript or assess_manuscript(mode='scaffold') first."
         )
     request = _assess.build_judge_request(sm, spec_version=spec_version, model=model)
-    raw_items = json.loads(items_json)
-    result = _assess.finalize_assessment(sm, raw_items, request, mode="scaffold")
+    result = _assess.finalize_assessment(sm, items, request, mode="scaffold")
     _assessments[result["manuscript_id"]] = result
     return result
 
 
 @mcp.tool()
 def check_critical_floor(
-    assessment_json: str = "",
+    assessment: dict[str, Any] | None = None,
     manuscript_id: str = "",
-) -> dict[str, Any]:
+) -> FloorResult:
     """Hard pass/fail gate over the non-waivable critical-floor leaves
     (time zero 6d/7d, causal estimand 6f/7f, identifying assumptions 6g/7g.i).
     This floor is a Black Swan Causal Labs governance overlay, not a tiering
-    the published guideline defines. Pass either a full assessment JSON or
-    the manuscript_id of an assessment produced earlier in this session."""
-    if assessment_json:
-        assessment = json.loads(assessment_json)
-    elif manuscript_id and manuscript_id in _assessments:
-        assessment = _assessments[manuscript_id]
-    else:
-        raise ValueError(
-            "Provide assessment_json, or a manuscript_id assessed this session."
-        )
+    the published guideline defines. Pass either a full `assessment` object or
+    the `manuscript_id` of an assessment produced earlier in this session."""
+    if assessment is None:
+        if manuscript_id and manuscript_id in _assessments:
+            assessment = _assessments[manuscript_id]
+        else:
+            raise ValueError(
+                "Provide an assessment object, or a manuscript_id assessed this session."
+            )
     return _gov.check_critical_floor(assessment)
 
 
 @mcp.tool()
 def aggregate_corpus(
-    assessments_json: str = "",
+    assessments: list[dict[str, Any]] | None = None,
     use_session: bool = False,
-) -> dict[str, Any]:
+) -> CorpusSummary:
     """Roll up many assessments into per-item completeness rates plus coverage
     denominators (supplement-retrieval status, full-text availability, evidence-
-    resolution rate) and the critical-floor distribution. Pass a JSON array of
-    assessment objects as `assessments_json`, or use_session=true to aggregate
-    every assessment produced this session. The completeness rates are only as
-    valid as the sample and are not yet gold-standard calibrated."""
-    if assessments_json:
-        assessments = json.loads(assessments_json)
-    elif use_session:
-        assessments = list(_assessments.values())
-    else:
-        raise ValueError("Provide assessments_json, or set use_session=true.")
+    resolution rate) and the critical-floor distribution. Pass an array of
+    assessment objects as `assessments`, or use_session=true to aggregate every
+    assessment produced this session. The completeness rates are only as valid
+    as the sample and are not yet gold-standard calibrated."""
+    if not assessments:
+        if use_session:
+            assessments = list(_assessments.values())
+        else:
+            raise ValueError("Provide assessments, or set use_session=true.")
     if not assessments:
         raise ValueError("No assessments to aggregate.")
     floors = [_gov.check_critical_floor(a) for a in assessments]
@@ -269,7 +351,7 @@ def aggregate_corpus(
 
 @mcp.tool()
 def build_coding_sheet(
-    assessments_json: str = "",
+    assessments: list[dict[str, Any]] | None = None,
     use_session: bool = False,
     blind: bool = True,
 ) -> list[dict[str, Any]]:
@@ -277,31 +359,28 @@ def build_coding_sheet(
     row per applicable leaf with its intent and verdict boundaries and empty
     verdict/evidence/note fields. blind=true (default) withholds the
     instrument's verdict so coders are not anchored — use blind coding for the
-    primary reference standard. Pass assessments_json or use_session=true."""
-    if assessments_json:
-        assessments = json.loads(assessments_json)
-    elif use_session:
-        assessments = list(_assessments.values())
-    else:
-        raise ValueError("Provide assessments_json, or set use_session=true.")
+    primary reference standard. Pass `assessments` or use_session=true."""
+    if not assessments:
+        if use_session:
+            assessments = list(_assessments.values())
+        else:
+            raise ValueError("Provide assessments, or set use_session=true.")
     return _validate.build_coding_sheet(assessments, blind=blind)
 
 
 @mcp.tool()
 def validate_against_gold(
-    instrument_json: str,
-    human_codings_json: str,
-) -> dict[str, Any]:
+    instrument: list[dict[str, Any]],
+    human_codings: list[dict[str, Any]],
+) -> ValidationResult:
     """Compute per-leaf agreement between instrument assessments and human
     gold-standard codings: raw agreement, Cohen's kappa, Gwet's AC1, and binary
     (reported-vs-rest) sensitivity/specificity with the human coding as the
     reference standard, plus a span-keyed disagreement list for adjudication.
     Agreement is reported PER LEAF; the pooled figure is orientation only. Both
-    arguments are JSON arrays of assessment/coding objects sharing manuscript
-    ids and spec version."""
-    instrument = json.loads(instrument_json)
-    human = json.loads(human_codings_json)
-    return _validate.compare(instrument, human)
+    arguments are arrays of assessment/coding objects sharing manuscript ids and
+    spec version."""
+    return _validate.compare(instrument, human_codings)
 
 
 def main() -> None:
