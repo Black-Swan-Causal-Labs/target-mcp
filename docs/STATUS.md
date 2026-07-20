@@ -38,6 +38,11 @@ artifact on demand (different view, logo, format). The default was slimmed from
 Markdown+HTML+docx (2026-07-20): the triple bundle both burned the caller's
 context window and caused a real 4-minute client timeout under Claude Desktop.
 
+Every render shows "Manuscript assessed: <full APA reference>" (2026-07-20):
+pass `citation=` to `parse_manuscript` (the agent formats APA from the paper in
+hand); `parse_pmcid` auto-builds it from JATS metadata (`citation=` overrides).
+Falls back to the short `manuscript_id` when absent.
+
 **Anti-drift design (2026-07-20):** an agent once hand-built its own Word doc
 instead of the sanctioned render, inheriting the checklist's authority without
 provenance. The fix is structural, not advisory: (1) the deliverable falls out of

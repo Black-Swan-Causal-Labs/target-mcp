@@ -7,6 +7,19 @@ Format: **what** — why — status.
 
 ---
 
+## 2026-07-20 · Full APA reference of the assessed manuscript on every render
+Renders identified the paper only by the short `manuscript_id` (e.g. a PMCID),
+which is not a citation. New `SectionMap.citation` field flows parse →
+assessment → report; all three renderers show "Manuscript assessed: <APA>",
+falling back to `manuscript_id` when absent.
+- **Sourcing:** agent-supplied on `parse_manuscript` (`citation=`, docstring
+  instructs APA from the paper in hand); auto-built from JATS `article-meta` on
+  `parse_pmcid` (`citation_from_jats`, best-effort — returns "" rather than
+  raising; `citation=` overrides). JATS author markup varies (contrib-type on
+  the contrib vs content-type on the group); both handled, verified live on
+  PMC8693691 + PMC9989554.
+- Status: done; 37 tests.
+
 ## 2026-07-20 · Inline report bundle slimmed to HTML-only by default
 `submit_scaffold_verdicts` now renders only HTML into `report` unless the caller
 passes `report_formats=` (any of `html`/`markdown`/`docx`).
