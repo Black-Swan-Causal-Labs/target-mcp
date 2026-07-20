@@ -99,10 +99,12 @@ class SectionMapSummary(TypedDict, total=False):
     warnings: list
     supplement_status: str
     documents: list
+    citation: str
 
 
 class AssessmentResult(TypedDict, total=False):
     manuscript_id: str
+    citation: str
     spec_version: str
     mode: str
     model: str
@@ -132,6 +134,7 @@ class AssessmentResult(TypedDict, total=False):
 
 class ChecklistReport(TypedDict, total=False):
     manuscript_id: str
+    citation: str
     spec_version: str
     view: str
     generated_from: dict
@@ -227,9 +230,17 @@ def parse_manuscript(
     manuscript_id: str = "",
     supplements: list[str] | None = None,
     supplement_status: str = "",
+    citation: str = "",
 ) -> SectionMapSummary:
     """PRIMARY entry point: parse a manuscript into a SectionMap with
     character-offset, source-tagged section spans.
+
+    PASS `citation=`: the manuscript's full bibliographic reference in APA style
+    (authors, year, title, journal, volume(issue), pages, DOI). It is carried
+    into the assessment and displayed on every rendered checklist so the
+    assessed publication is unambiguous — without it, renders can only show the
+    short manuscript_id. You have the paper in hand; format the reference from
+    its title page.
 
     `document` is EITHER the raw manuscript text OR a file path — but the path
     must be readable on the SERVER host. If you are an agent whose uploaded files
@@ -263,12 +274,15 @@ def parse_manuscript(
                 raise ValueError(f"Unknown supplement_status {supplement_status!r}")
             main.supplement_status = supplement_status
         sm = main
+    if citation:
+        sm.citation = citation
     _parsed[sm.text_sha256] = sm
     return _summarize(sm)
 
 
 @mcp.tool()
-def parse_pmcid(pmcid: str, include_supplements: bool = True) -> SectionMapSummary:
+def parse_pmcid(pmcid: str, include_supplements: bool = True,
+                citation: str = "") -> SectionMapSummary:
     """CONVENIENCE / BATCH entry point: retrieve an open-access article from
     Europe PMC by PMCID and parse it. Reach for this in the corpus/batch case
     (no file in hand) or to auto-fetch an open-access paper's supplement; for a
@@ -278,8 +292,13 @@ def parse_pmcid(pmcid: str, include_supplements: bool = True) -> SectionMapSumma
     supplement was obtained, else 'not_retrieved' (a supplement may still exist
     on the publisher site; absence of retrieval is not proof of absence).
     Raises if no open-access full text is available. Returns the same summary
-    as parse_manuscript, including the text hash for assess_manuscript."""
+    as parse_manuscript, including the text hash for assess_manuscript.
+    An APA-style `citation` is auto-built from the article's JATS metadata and
+    displayed on every rendered checklist; pass citation= to override it (e.g.
+    when the auto-built reference is incomplete)."""
     sm = _retrieve.retrieve_bundle(pmcid, include_supplements=include_supplements)
+    if citation:
+        sm.citation = citation
     _parsed[sm.text_sha256] = sm
     return _summarize(sm)
 

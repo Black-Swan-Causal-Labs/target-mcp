@@ -338,6 +338,9 @@ def render_markdown(
     prov: dict[str, Any],
 ) -> str:
     mid = assessment.get("manuscript_id", "(unnamed)")
+    # Full bibliographic reference of the assessed publication when supplied;
+    # the short manuscript_id is only the fallback.
+    manuscript_ref = assessment.get("citation") or mid
 
     lines = [
         f"# {TITLE}",
@@ -345,7 +348,7 @@ def render_markdown(
         "",
         f"*{CITATION}*",
         "",
-        f"**Manuscript:** {mid}  ",
+        f"**Manuscript assessed:** {manuscript_ref}  ",
         instrument_line(assessment),
         "",
         f"**{completeness_line(completeness)}**",
@@ -414,6 +417,7 @@ def render_checklist(
 
     return {
         "manuscript_id": assessment.get("manuscript_id", ""),
+        "citation": assessment.get("citation", ""),
         "spec_version": assessment.get("spec_version", ""),
         "view": view,
         "generated_from": {

@@ -284,6 +284,7 @@ def finalize_assessment(
 
     return {
         "manuscript_id": sm.manuscript_id,
+        "citation": sm.citation,
         "spec_version": request["spec_version"],
         "mode": mode,
         "model": request["model"] if mode == "judge" else f"external:{request['model']}",

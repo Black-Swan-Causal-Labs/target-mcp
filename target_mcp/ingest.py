@@ -108,6 +108,7 @@ class SectionMap:
     warnings: list[str] = field(default_factory=list)
     supplement_status: str = "not_checked"
     documents: list[dict[str, Any]] = field(default_factory=list)  # per-source metadata
+    citation: str = ""  # full bibliographic reference (APA style) for the manuscript
 
     def section_text(self, name: str) -> str:
         return "\n\n".join(
@@ -445,4 +446,5 @@ def build_bundle(
         warnings=list(main.warnings),
         supplement_status=supplement_status,
         documents=documents,
+        citation=main.citation,
     )

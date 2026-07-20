@@ -145,8 +145,10 @@ def write_checklist_docx(
     cr.italic = True
     _small(cr, 8)
 
+    manuscript_ref = (report.get("citation")
+                      or report.get("manuscript_id") or "(unnamed)")
     meta = doc.add_paragraph()
-    meta.add_run(f"Manuscript: {report.get('manuscript_id') or '(unnamed)'}").bold = True
+    meta.add_run(f"Manuscript assessed: {manuscript_ref}").bold = True
     instr = doc.add_paragraph()
     _small(instr.add_run(_render.instrument_line(report)))
 

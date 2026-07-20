@@ -42,7 +42,8 @@ _CSS = """
   .subtitle { font-weight:700; font-style:italic; font-size:1.3rem; color:var(--accent); margin:0 0 16px; width:100%; }
   .citation { font-style:italic; font-size:.95rem; color:var(--ink-soft); width:100%; margin:0 0 18px; line-height:1.45; }
   .meta { display:flex; flex-direction:column; gap:4px; padding:12px 15px; background:var(--surface); border:1.5px solid var(--line); }
-  .meta .ms { font-weight:700; font-size:1.02rem; }
+  .meta .ms { font-weight:700; font-size:1.02rem; line-height:1.45; }
+  .meta .ms .ms-label { color:var(--accent); }
   .meta .instr { font-size:.95rem; color:var(--ink-soft); line-height:1.4; }
   .rule-bar { height:11px; background:var(--line); margin:22px 0 0; }
   .rule-bar.foot { margin:0 0 14px; }
@@ -156,6 +157,9 @@ def render_html(report: dict[str, Any]) -> str:
     prov = report.get("provenance", {})
     attrib = report.get("attribution", {})
     mid = report.get("manuscript_id") or "(unnamed)"
+    # Show the full bibliographic reference of the assessed publication when
+    # available; the short manuscript_id is only the fallback.
+    manuscript_ref = report.get("citation") or mid
 
     seg = ""
     for key, cls in (("reported", "seg-rep"), ("partial", "seg-par"),
@@ -191,7 +195,7 @@ def render_html(report: dict[str, Any]) -> str:
     <p class="subtitle">{_esc(_render.SUBTITLE)}</p>
     <p class="citation">{_esc(attrib.get("citation", _render.CITATION))}</p>
     <div class="meta">
-      <span class="ms">Manuscript: {_esc(mid)}</span>
+      <span class="ms"><span class="ms-label">Manuscript assessed:</span> {_esc(manuscript_ref)}</span>
       <span class="instr">{_esc(_render.instrument_line(report))}</span>
     </div>
   </header>

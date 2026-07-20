@@ -271,3 +271,40 @@ def test_render_checklist_accepts_structured_assessment():
     report = _call("render_checklist", {"assessment": assessment})
     assert len(report["rows"]) == 39
     assert report["completeness"]["not_reported"] == 39
+
+
+def test_citation_flows_from_parse_to_every_render():
+    import base64
+    apa = ("Doe, J., & Roe, R. (2024). A target trial emulation of drug A "
+           "versus drug B. Journal of Testing, 12(3), 1-10. "
+           "https://doi.org/10.1000/test")
+    parsed = _call("parse_manuscript", {"document": FAKE, "manuscript_id": "cite-1",
+                                        "supplement_status": "none_exists",
+                                        "citation": apa})
+    assert parsed["citation"] == apa
+    sha = parsed["text_sha256"]
+    scaf = _call("assess_manuscript", {"document": sha, "mode": "scaffold"})
+    items = [{"id": lid, "verdict": "not_reported", "confidence": 0.7, "rationale": "x"}
+             for lid in scaf["leaf_ids"]]
+    res = _call("submit_scaffold_verdicts",
+                {"text_sha256": sha, "items": items,
+                 "report_formats": ["html", "markdown", "docx"]})
+    assert res["citation"] == apa
+    rep = res["report"]
+    import html as _html
+    assert _html.escape(apa) in rep["html"] and "Manuscript assessed:" in rep["html"]
+    assert f"**Manuscript assessed:** {apa}" in rep["markdown"]
+    from docx import Document
+    import io
+    doc = Document(io.BytesIO(base64.b64decode(rep["docx_base64"])))
+    assert any(apa in p.text for p in doc.paragraphs)
+    # without a citation, renders fall back to the short manuscript_id
+    parsed2 = _call("parse_manuscript", {"document": FAKE + " x", "manuscript_id":
+                                         "cite-2", "supplement_status": "none_exists"})
+    scaf2 = _call("assess_manuscript", {"document": parsed2["text_sha256"],
+                                        "mode": "scaffold"})
+    items2 = [{"id": lid, "verdict": "not_reported", "confidence": 0.7, "rationale": "x"}
+              for lid in scaf2["leaf_ids"]]
+    res2 = _call("submit_scaffold_verdicts",
+                 {"text_sha256": parsed2["text_sha256"], "items": items2})
+    assert "Manuscript assessed:</span> cite-2" in res2["report"]["html"]

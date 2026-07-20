@@ -424,3 +424,35 @@ def test_prompt_hash_stable():
     r2 = build_judge_request(sm)
     assert r1["prompt_hash"] == r2["prompt_hash"]
     assert r1["prompt_hash"].startswith("sha256:")
+
+
+def test_citation_from_jats_builds_apa():
+    from target_mcp.retrieve import citation_from_jats
+    xml = b"""<article>
+      <front>
+        <journal-meta><journal-title-group>
+          <journal-title>New England Journal of Medicine</journal-title>
+        </journal-title-group></journal-meta>
+        <article-meta>
+          <article-id pub-id-type="doi">10.1056/NEJMoa2115463</article-id>
+          <title-group><article-title>Comparative Effectiveness of BNT162b2 and mRNA-1273 Vaccines.</article-title></title-group>
+          <contrib-group>
+            <contrib contrib-type="author"><name><surname>Dickerman</surname><given-names>Barbra A.</given-names></name></contrib>
+            <contrib contrib-type="author"><name><surname>Gerlovin</surname><given-names>Hanna</given-names></name></contrib>
+            <contrib contrib-type="author"><name><surname>Madenci</surname><given-names>Arin L.</given-names></name></contrib>
+          </contrib-group>
+          <pub-date pub-type="ppub"><year>2022</year></pub-date>
+          <volume>386</volume><issue>2</issue>
+          <fpage>105</fpage><lpage>115</lpage>
+        </article-meta>
+      </front>
+      <body/>
+    </article>"""
+    cite = citation_from_jats(xml)
+    assert cite == ("Dickerman, B. A., Gerlovin, H., & Madenci, A. L. (2022). "
+                    "Comparative Effectiveness of BNT162b2 and mRNA-1273 Vaccines. "
+                    "New England Journal of Medicine, 386(2), 105–115. "
+                    "https://doi.org/10.1056/NEJMoa2115463")
+    # best-effort: garbage in, empty string out (never raises)
+    assert citation_from_jats(b"<not-jats/>") == ""
+    assert citation_from_jats(b"broken <<<") == ""
