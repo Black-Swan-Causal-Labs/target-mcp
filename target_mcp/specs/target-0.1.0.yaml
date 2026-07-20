@@ -36,26 +36,6 @@ evidence_policy: >
   and `not_applicable` carry no evidence spans; `not_applicable` must state
   the applicability condition invoked.
 
-critical_floor:
-  provenance: bscl_overlay   # Black Swan Causal Labs governance overlay.
-                             # NOT part of the published guideline: TARGET
-                             # presents all 21 items as essential minimum
-                             # items with no tiering. This floor is this
-                             # instrument's non-waivable gate.
-  rationale: >
-    Three pillars: (1) the causal estimand is actually stated, in both the
-    target trial and its emulation (6f/7f); (2) time zero is defined so that
-    eligibility, assignment and start of follow-up align, controlling
-    immortal-time and related design biases (6d/7d); (3) identifying
-    assumptions, including baseline confounding due to lack of randomization,
-    are explicit (6g/7g.i). Because each pillar requires both the
-    specification leaf and its emulation leaf, the floor also enforces the
-    protocol-and-emulation pairing structure itself.
-  leaves: ["6d", "7d", "6f", "7f", "6g", "7g.i"]
-  pass_rule: >
-    Every floor leaf must be `reported` (not `partial`). Any other verdict on
-    any floor leaf fails the gate.
-
 items:
   # ---------------------------------------------------------------- abstract
   - id: "1a"
@@ -66,7 +46,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: true
     objective_prefilter: true
     intent: >
@@ -95,7 +74,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: true
     objective_prefilter: true
     intent: >
@@ -119,7 +97,6 @@ items:
     paired_with: []
     applicability: always
     abstract_supportable: true
-    critical_floor: false
     objective_prefilter: false
     intent: >
       The abstract concisely covers: the key assumptions required in the
@@ -145,7 +122,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -165,7 +141,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -195,7 +170,6 @@ items:
       only when the target trial was designed after a completed or ongoing
       randomized trial; if no such trial informs the design, absence of
       citations does not count against the leaf.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -224,7 +198,6 @@ items:
     applicability_rule: >
       Core description always applies. The linkage/pooling clause applies only
       when multiple sources are combined.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -257,7 +230,6 @@ items:
     role: specification
     paired_with: ["7a"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -281,7 +253,6 @@ items:
     role: emulation
     paired_with: ["6a"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -305,7 +276,6 @@ items:
     role: specification
     paired_with: ["7b"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -333,7 +303,6 @@ items:
     role: emulation
     paired_with: ["6b"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -357,7 +326,6 @@ items:
     role: specification
     paired_with: ["7c"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: true
     intent: >
@@ -385,7 +353,6 @@ items:
     applicability_rule: >
       Always applicable. The cloning clause applies only when strategies are
       indistinguishable at the start of follow-up.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -410,7 +377,6 @@ items:
     role: specification
     paired_with: ["7d"]
     applicability: always
-    critical_floor: true
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -423,8 +389,8 @@ items:
     assessor_notes: >
       reported: both the start-at-assignment statement and the end-of-follow-
       up definition present. partial: one of the two present. not_reported:
-      follow-up timing unspecified. Floor leaf: this is the anchor for
-      immortal-time control.
+      follow-up timing unspecified. This leaf is the anchor for immortal-time
+      control.
     e_e_pending: true
 
   - id: "7d"
@@ -439,7 +405,6 @@ items:
       Always applicable. The which-eligible-time clause applies only to
       comparisons against non-initiation/usual care, where a "start" is not
       naturally defined for the untreated group.
-    critical_floor: true
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -454,8 +419,8 @@ items:
       reported: data-level time zero and end-of-follow-up ascertainment both
       explicit, including the comparator-start rule when applicable. partial:
       index date defined but end-of-follow-up ascertainment or the
-      comparator-start rule missing. not_reported: neither defined. Floor
-      leaf: misalignment here is the immortal-time signature.
+      comparator-start rule missing. not_reported: neither defined.
+      Misalignment here is the immortal-time signature.
     e_e_pending: true
 
   - id: "6e"
@@ -466,7 +431,6 @@ items:
     role: specification
     paired_with: ["7e"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -488,7 +452,6 @@ items:
     role: emulation
     paired_with: ["6e"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -516,7 +479,6 @@ items:
       Always applicable. The competing-events clause applies only when
       competing events exist for an outcome; the both-measures clause applies
       when both relative and absolute measures are meaningful.
-    critical_floor: true
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -532,8 +494,7 @@ items:
       reported: named contrast(s) plus effect measures; competing-event
       handling specified when relevant. partial: contrast named but measures
       or competing-event handling missing. not_reported: no contrast is
-      distinguishable — analysis jumps straight to a model coefficient. Floor
-      leaf: pillar 1 (stated estimand).
+      distinguishable — analysis jumps straight to a model coefficient.
     e_e_pending: true
 
   - id: "7f"
@@ -546,7 +507,6 @@ items:
     applicability: conditional
     applicability_rule: >
       Always applicable. Competing-events clause as in 6f.
-    critical_floor: true
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -561,7 +521,7 @@ items:
       reported: each specified contrast has an explicit observational
       counterpart. partial: analog stated for some contrasts only, or
       adherence handling in the per-protocol analog undefined. not_reported:
-      no mapping from contrast to analysis. Floor leaf.
+      no mapping from contrast to analysis.
     e_e_pending: true
 
   - id: "6g"
@@ -572,7 +532,6 @@ items:
     role: specification
     paired_with: ["7g.i", "7g.ii"]
     applicability: always
-    critical_floor: true
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -589,7 +548,7 @@ items:
       variables. partial: assumptions gestured at generically (a lone "we
       assume no unmeasured confounding") without per-estimand structure or
       variables. not_reported: no identification discussion in the
-      specification. Floor leaf: pillar 3.
+      specification.
     e_e_pending: true
 
   - id: "7g.i"
@@ -600,7 +559,6 @@ items:
     role: emulation
     paired_with: ["6g"]
     applicability: always
-    critical_floor: true
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -618,7 +576,7 @@ items:
       needs them. partial: confounder list given without the assumption or
       justification connecting it to identification, or post-baseline
       assumptions missing where required. not_reported: identification never
-      addressed. Floor leaf: pillar 3, emulation side.
+      addressed.
     e_e_pending: true
 
   - id: "7g.ii"
@@ -629,7 +587,6 @@ items:
     role: emulation
     paired_with: ["6g"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -653,7 +610,6 @@ items:
     role: specification
     paired_with: ["7h.i", "7h.ii"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -682,7 +638,6 @@ items:
     applicability_rule: >
       Always applicable. Sequential-trials and cloning clauses apply only
       when those designs are used.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -711,7 +666,6 @@ items:
     role: emulation
     paired_with: ["6h"]
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -740,7 +694,6 @@ items:
     applicability_rule: >
       Always applicable. Unique-vs-analyzed counts apply only under
       sequential trials or cloning.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: true
     intent: >
@@ -770,7 +723,6 @@ items:
       Always applicable. Before/after-adjustment presentation applies when
       weighting/standardization/matching is used; the combined-then-by-
       strategy presentation applies under cloning.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -798,7 +750,6 @@ items:
     applicability_rule: >
       Always applicable. Censoring-reason counts apply when the analysis
       censors individuals.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -826,7 +777,6 @@ items:
       strategies exist for the variable in question. If the data genuinely
       have no missingness in the variables used, an explicit statement to
       that effect satisfies the leaf.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -849,7 +799,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -875,7 +824,6 @@ items:
     applicability_rule: >
       Always applicable. Both-absolute-and-relative applies when both are
       meaningful for the outcome type.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -902,7 +850,6 @@ items:
       Applicable when additional/sensitivity analyses were planned or
       conducted (see 7h.ii). If none were conducted, score not_applicable
       here and let 7h.ii carry the deficiency.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -926,7 +873,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -949,7 +895,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: false
     intent: >
@@ -978,7 +923,6 @@ items:
     applicability_rule: >
       Approval numbers apply if relevant; a documented exemption/waiver
       satisfies the leaf.
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: true
     intent: >
@@ -999,7 +943,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: true
     intent: >
@@ -1021,7 +964,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: true
     intent: >
@@ -1043,7 +985,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: true
     intent: >
@@ -1063,7 +1004,6 @@ items:
     role: null
     paired_with: []
     applicability: always
-    critical_floor: false
     abstract_supportable: false
     objective_prefilter: true
     intent: >

@@ -3,10 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from target_mcp.spec import load_spec, floor_leaves, SpecError
+from target_mcp.spec import load_spec, SpecError
 from target_mcp.ingest import parse_text, parse_pdf, build_bundle
 from target_mcp.assess import build_judge_request, finalize_assessment, VerdictValidationError
-from target_mcp.governance import check_critical_floor
 
 REPO_PARENT = Path(__file__).resolve().parents[2]
 BMJ_PDF = REPO_PARENT / "bmj-2025-087179.full.pdf"
@@ -44,7 +43,6 @@ def test_spec_loads_and_counts():
     spec = load_spec()
     assert len(spec["items"]) == 39
     assert {i["item_no"] for i in spec["items"]} == set(range(1, 22))
-    assert floor_leaves() == ["6d", "7d", "6f", "7f", "6g", "7g.i"]
     # pairing symmetry is enforced at load; check one pair explicitly
     by_id = {i["id"]: i for i in spec["items"]}
     assert by_id["6g"]["paired_with"] == ["7g.i", "7g.ii"]
@@ -80,7 +78,7 @@ def test_parse_real_pdf():
 
 
 def _full_verdicts(request, sm):
-    """Synthetic verdict set: floor leaves reported with real quotes,
+    """Synthetic verdict set: a handful of leaves reported with real quotes,
     everything else not_reported."""
     quote_by_leaf = {
         "6d": "Follow-up started at treatment assignment (time zero)",
@@ -101,7 +99,7 @@ def _full_verdicts(request, sm):
     return items
 
 
-def test_finalize_and_floor_pass():
+def test_finalize_resolves_evidence_and_rolls_up():
     sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
     request = build_judge_request(sm)
     assert len(request["leaf_ids"]) == 39 and not request["excluded_leaves"]
@@ -110,47 +108,8 @@ def test_finalize_and_floor_pass():
     assert result["unresolved_evidence_leaves"] == []
     ev = next(i for i in result["items"] if i["id"] == "6d")["evidence"][0]
     assert ev["resolved"] and ev["section"] == "methods"
-    floor = check_critical_floor(result)
-    assert floor["status"] == "pass" and floor["pass"]
-
-
-def _partial_floor_result(supplement_status):
-    sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
-    sm.supplement_status = supplement_status
-    request = build_judge_request(sm)
-    verdicts = _full_verdicts(request, sm)
-    for v in verdicts:
-        if v["id"] == "7g.i":
-            v["verdict"] = "partial"
-    return finalize_assessment(sm, verdicts, request, mode="judge")
-
-
-def test_floor_fails_on_partial_when_supplement_confident():
-    # A confident supplement state (here: none_exists) permits a real fail.
-    result = _partial_floor_result("none_exists")
-    floor = check_critical_floor(result)
-    assert floor["status"] == "fail"
-    assert [f["id"] for f in floor["failed_leaves"]] == ["7g.i"]
-    assert floor["pending_supplement_leaves"] == []
-
-
-def test_floor_indeterminate_when_supplement_not_retrieved():
-    # Same verdicts, but no supplement checked -> cannot assert a failure.
-    for status in ("not_checked", "not_retrieved"):
-        result = _partial_floor_result(status)
-        floor = check_critical_floor(result)
-        assert floor["status"] == "indeterminate", status
-        assert [f["id"] for f in floor["pending_supplement_leaves"]] == ["7g.i"]
-        assert floor["failed_leaves"] == []
-
-
-def test_floor_pass_regardless_of_supplement_status():
-    # All floor leaves reported -> pass even if no supplement was checked.
-    sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
-    request = build_judge_request(sm)
-    result = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
-    assert result["supplement_status"] == "not_checked"
-    assert check_critical_floor(result)["status"] == "pass"
+    # section rollups tally verdicts per section
+    assert result["section_rollups"]["methods"]["reported"] >= 1
 
 
 def test_evidence_required_for_reported():
@@ -191,8 +150,8 @@ def test_abstract_only_gating():
              for lid in request["leaf_ids"]]
     result = finalize_assessment(sm, items, request, mode="judge")
     assert result["full_text_available"] is False
-    floor = check_critical_floor(result)
-    assert floor["status"] == "indeterminate"
+    # the 36 non-abstract leaves are excluded, not scored
+    assert len(result["excluded_leaves"]) == 36
 
 
 def test_build_bundle_source_tagging_and_resolution():
@@ -214,7 +173,7 @@ def test_build_bundle_source_tagging_and_resolution():
     assert mspan is not None and bundle.source_at(mspan[0]) == "main"
 
 
-def test_supplement_flips_floor_leaf_and_source_tagged_evidence():
+def test_supplement_supplies_leaf_and_source_tagged_evidence():
     # Main text lacks the estimand statement; supplement supplies it.
     main = parse_text(FAKE_PAPER, manuscript_id="fake-1")
     suppl = "Causal contrasts of interest: the intention-to-treat effect of drug A versus drug B."
@@ -239,7 +198,7 @@ def test_aggregate_corpus():
     from target_mcp.corpus import aggregate_corpus
     sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
     request = build_judge_request(sm)
-    # paper A: all floor reported (pass); paper B: 7g.i partial
+    # paper A: 6g reported; paper B: 6g not_reported
     a = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
     a["manuscript_id"] = "A"
     vb = _full_verdicts(request, sm)
@@ -251,10 +210,8 @@ def test_aggregate_corpus():
     b["manuscript_id"] = "B"
     for x in (a, b):
         x["supplement_status"] = "none_exists"
-    floors = [check_critical_floor(a), check_critical_floor(b)]
-    summ = aggregate_corpus([a, b], floors)
+    summ = aggregate_corpus([a, b])
     assert summ["n_papers"] == 2
-    assert summ["critical_floor_distribution"] == {"fail": 1, "pass": 1}
     g6 = next(r for r in summ["per_leaf"] if r["id"] == "6g")
     assert g6["reported"] == 1 and g6["not_reported"] == 1
     assert g6["reported_rate"] == 0.5
@@ -274,7 +231,7 @@ def test_validation_harness():
     assert all("_instrument_verdict" not in r for r in sheet[0]["items"])
     assert {r["id"] for r in sheet[0]["items"]} == set(request["leaf_ids"])
 
-    # a human coding that agrees on all floor leaves except 6f (human: partial)
+    # a human coding that agrees on everything except 6f (human: partial)
     human_items = []
     for i in instr["items"]:
         v = i["verdict"]
@@ -297,6 +254,168 @@ def test_validation_harness():
     # a leaf both coded 'reported' shows perfect agreement
     row6d = next(r for r in result["per_leaf"] if r["id"] == "6d")
     assert row6d["raw_agreement"] == 1.0
+
+
+def test_render_checklist_enriched():
+    from target_mcp.render import render_checklist, OFFICIAL_TEXT
+    sm = parse_text(FAKE_PAPER, manuscript_id="fake-1")
+    request = build_judge_request(sm)
+    result = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
+
+    report = render_checklist(result)
+    # one row per encoded leaf, in checklist order, all officially worded
+    assert len(report["rows"]) == 39
+    assert [r["id"] for r in report["rows"]] == request["leaf_ids"]
+    assert all(r["official_text"] == OFFICIAL_TEXT[r["id"]] for r in report["rows"])
+
+    # a reported leaf carries its resolved location, not "Not reported"
+    row6d = next(r for r in report["rows"] if r["id"] == "6d")
+    assert row6d["verdict"] == "reported"
+    assert row6d["location"] == "Methods"
+    # a not_reported leaf reads "Not reported"
+    row2 = next(r for r in report["rows"] if r["id"] == "2")
+    assert row2["verdict"] == "not_reported" and row2["location"] == "Not reported"
+
+    assert report["completeness"]["reported"] == 6
+    assert "floor" not in report  # the critical floor was removed
+    assert "(TARGET) Checklist" in report["markdown"]
+    assert "Black Swan Causal Labs — Completeness Assessment" in report["markdown"]
+    assert "third-party" not in report["markdown"].lower()  # framing removed
+    assert "Location reported" in report["markdown"]
+
+
+def test_render_checklist_official_view_and_supplement_location():
+    from target_mcp.render import render_checklist
+    main = parse_text(FAKE_PAPER, manuscript_id="fake-1")
+    suppl = "Causal contrasts of interest: the intention-to-treat effect of drug A versus drug B."
+    bundle = build_bundle(main, [("s1.pdf", suppl, 1)], supplement_status="user_provided")
+    request = build_judge_request(bundle)
+    verdicts = []
+    for lid in request["leaf_ids"]:
+        if lid == "6f":
+            verdicts.append({"id": lid, "verdict": "reported", "confidence": 0.9,
+                             "rationale": "estimand named in supplement",
+                             "evidence_quotes": ["the intention-to-treat effect of drug A versus drug B"]})
+        else:
+            verdicts.append({"id": lid, "verdict": "not_reported", "confidence": 0.8,
+                             "rationale": "absent"})
+    result = finalize_assessment(bundle, verdicts, request, mode="scaffold")
+
+    # supplement-sourced evidence surfaces as a Supplement location
+    report = render_checklist(result)
+    row6f = next(r for r in report["rows"] if r["id"] == "6f")
+    assert row6f["location"] == "Supplement — s1.pdf"
+
+    # official view drops the verdict/evidence columns from the table header
+    official = render_checklist(result, view="official")
+    assert "| Verdict |" not in official["markdown"]
+    assert "Evidence & rationale" not in official["markdown"]
+    assert "| Verdict |" in render_checklist(result)["markdown"]  # present in enriched
+    assert "Location reported" in official["markdown"]
+
+
+def test_path_like_but_missing_raises_not_silently_ingested():
+    from target_mcp.ingest import parse_document
+    # a path that doesn't resolve must RAISE, not become a 30-char "manuscript"
+    with pytest.raises(FileNotFoundError):
+        parse_document("other pubs/Nonexistent Paper 2024.pdf")
+    with pytest.raises(FileNotFoundError):
+        parse_document("/absolute/missing/paper.docx")
+    # genuine inline text is still parsed as text, not mistaken for a path
+    sm = parse_document(FAKE_PAPER)
+    assert len(sm.full_text) > 500
+    assert "methods" in {s.name for s in sm.sections}
+
+
+def test_extraction_guards():
+    from target_mcp.ingest import (_assert_plausible, ExtractionError,
+                                   _too_sparse, _looks_like_path)
+    # a paged doc that resolves to near-nothing fails loudly
+    with pytest.raises(ExtractionError):
+        _assert_plausible("   ", 12, "scan.pdf")
+    _assert_plausible("x" * 300, 3, "ok.pdf")  # plausible -> no raise
+    _assert_plausible("short but no page count", None, "text")  # non-paged -> no raise
+    assert _too_sparse([""] * 10) is True
+    assert _too_sparse(["word " * 60]) is False
+    assert _looks_like_path("/abs/paper.pdf") and _looks_like_path("folder/p.docx")
+    assert not _looks_like_path("We emulated a target trial of drug A versus B in adults.")
+
+
+def test_out_of_order_layout_still_fully_assessed():
+    # Methods printed AFTER Discussion (accepted-manuscript proof): the sectioner
+    # drops the out-of-order Methods heading, but a substantial body still unlocks
+    # the full checklist rather than excluding 36 leaves.
+    body = ("Discussion\n" + "We interpret the findings in context. " * 300
+            + "\nMethods\n" + "Eligibility required age over 40 and a diagnosis. " * 40)
+    sm = parse_text("Title line\nAbstract\nWe emulated a target trial.\n" + body,
+                    manuscript_id="ooo")
+    request = build_judge_request(sm)
+    assert len(request["leaf_ids"]) == 39 and request["excluded_leaves"] == []
+
+
+def test_unresolved_quote_carries_actionable_reason():
+    sm = parse_text(FAKE_PAPER, manuscript_id="ur")
+    request = build_judge_request(sm)
+    verds = _full_verdicts(request, sm)
+    for v in verds:
+        if v["id"] == "6a":
+            v["verdict"] = "reported"
+            v["evidence_quotes"] = ["this exact phrase appears nowhere in the manuscript"]
+    res = finalize_assessment(sm, verds, request, mode="judge")
+    ev = next(i for i in res["items"] if i["id"] == "6a")["evidence"][0]
+    assert ev["resolved"] is False
+    assert ev.get("reason")  # opaque None replaced by an actionable explanation
+    assert "6a" in res["unresolved_evidence_leaves"]
+
+
+def test_provenance_stamp_binds_to_inputs():
+    from target_mcp.render import provenance, render_checklist
+    sm = parse_text(FAKE_PAPER, manuscript_id="prov")
+    request = build_judge_request(sm)
+    res = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
+    p = provenance(res)
+    assert p["stamp"].startswith("TGT-") and len(p["stamp"]) == 16
+    assert p["text_sha256"] == res["text_sha256"]
+    # stamp changes if the ingested text changes (different manuscript => different sha)
+    sm2 = parse_text(FAKE_PAPER + "\nExtra sentence.", manuscript_id="prov2")
+    r2 = build_judge_request(sm2)
+    res2 = finalize_assessment(sm2, _full_verdicts(r2, sm2), r2, mode="judge")
+    assert provenance(res2)["stamp"] != p["stamp"]
+    # the render carries the stamp in its footer and structured block
+    report = render_checklist(res)
+    assert report["provenance"]["stamp"] == p["stamp"]
+    assert p["stamp"] in report["markdown"]
+
+
+def test_render_html_is_self_contained_and_stamped():
+    from target_mcp.render import render_checklist
+    from target_mcp.render_html import render_html
+    sm = parse_text(FAKE_PAPER, manuscript_id="html-1")
+    request = build_judge_request(sm)
+    res = finalize_assessment(sm, _full_verdicts(request, sm), request, mode="judge")
+    html = render_html(render_checklist(res))
+    assert html.startswith("<!doctype html>")
+    assert "<style>" in html and "http://" not in html and "https://" not in html  # no external assets
+    assert "(TARGET) Checklist" in html
+    assert "Black Swan Causal Labs — Completeness Assessment" in html
+    # all 39 leaf ids present; provenance stamp embedded
+    for lid in ("1a", "6d", "7g.i", "21"):
+        assert f'class="col-id">{lid}<' in html
+    assert render_checklist(res)["provenance"]["stamp"] in html
+    assert 'name="target-mcp:stamp"' in html
+
+
+def test_protocol_table_detected_from_delimited_header():
+    from target_mcp.ingest import _detect_protocol_table
+    # pipe- or tab-delimited protocol table (the text-path form) with no literal
+    # word "table" is still detected via the column-header fallback
+    piped = "Component | Hypothetical target trial | Emulation using cohort data"
+    tabbed = "Protocol component\tTarget trial\tEmulated trial"
+    assert _detect_protocol_table(piped)
+    assert _detect_protocol_table(tabbed)
+    # prose mentioning both terms (no column separator) does not false-positive
+    assert not _detect_protocol_table(
+        "We emulated a hypothetical target trial using observational data.")
 
 
 def test_prompt_hash_stable():

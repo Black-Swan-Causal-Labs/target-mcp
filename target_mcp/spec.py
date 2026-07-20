@@ -67,13 +67,6 @@ def _validate(spec: dict[str, Any]) -> None:
         if it.get("applicability") == "conditional" and not it.get("applicability_rule"):
             raise SpecError(f"Leaf {it['id']}: conditional without applicability_rule")
 
-    floor = set(spec["critical_floor"]["leaves"])
-    flagged = {it["id"] for it in items if it.get("critical_floor")}
-    if floor != flagged:
-        raise SpecError(
-            f"critical_floor.leaves {sorted(floor)} != leaves flagged critical_floor {sorted(flagged)}"
-        )
-
 
 def get_leaf(leaf_id: str, version: str = DEFAULT_VERSION) -> dict[str, Any]:
     spec = load_spec(version)
@@ -81,7 +74,3 @@ def get_leaf(leaf_id: str, version: str = DEFAULT_VERSION) -> dict[str, Any]:
         if it["id"] == leaf_id:
             return it
     raise SpecError(f"Unknown leaf id {leaf_id!r} in {version}")
-
-
-def floor_leaves(version: str = DEFAULT_VERSION) -> list[str]:
-    return list(load_spec(version)["critical_floor"]["leaves"])

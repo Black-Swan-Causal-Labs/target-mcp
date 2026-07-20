@@ -159,7 +159,6 @@ def compare(
     spec = load_spec(spec_version)
     order = [it["id"] for it in spec["items"]]
     meta = {it["id"]: it for it in spec["items"]}
-    floor = set(spec["critical_floor"]["leaves"])
 
     instr_by_mid = {a["manuscript_id"]: {i["id"]: i for i in a["items"]}
                     for a in instrument_assessments}
@@ -185,7 +184,6 @@ def compare(
                 disagreements.append({
                     "manuscript_id": mid, "id": lid,
                     "instrument_verdict": a, "human_verdict": b,
-                    "critical_floor": lid in floor,
                     # span-keyed adjudication: point the human at the exact quote
                     "instrument_evidence": iv[lid].get("evidence", []),
                     "instrument_rationale": iv[lid].get("rationale", ""),
@@ -204,7 +202,6 @@ def compare(
             "item_no": meta[lid]["item_no"],
             "section": meta[lid]["section"],
             "label": meta[lid]["label"],
-            "critical_floor": lid in floor,
             "n": n,
             "raw_agreement": raw,
             "cohen_kappa": _cohen_kappa(pairs, list(VERDICTS)),

@@ -1,11 +1,10 @@
 """Corpus layer: roll up many assessments into completeness rates and coverage.
 
 Pure aggregation over finalized assessments (as produced by assess.finalize_
-assessment) plus their floor results (governance.check_critical_floor). No model
-calls, no network. This is the measurement-instrument output: per-item
-completeness across a corpus, with the coverage denominators that make the
-numbers honest (how many papers had full text, how many had a supplement
-retrieved, how much evidence resolved).
+assessment). No model calls, no network. This is the measurement-instrument
+output: per-item completeness across a corpus, with the coverage denominators
+that make the numbers honest (how many papers had full text, how many had a
+supplement retrieved, how much evidence resolved).
 """
 
 from __future__ import annotations
@@ -17,12 +16,9 @@ from .spec import load_spec, VERDICTS
 
 def aggregate_corpus(
     assessments: list[dict[str, Any]],
-    floors: list[dict[str, Any]] | None = None,
     spec_version: str | None = None,
 ) -> dict[str, Any]:
-    """Roll up a list of assessments. `floors` (optional, aligned by index or by
-    manuscript_id) supplies critical-floor results for the floor distribution.
-    """
+    """Roll up a list of assessments into per-leaf completeness and coverage."""
     if not assessments:
         return {"n_papers": 0, "note": "no assessments supplied"}
 
@@ -30,7 +26,6 @@ def aggregate_corpus(
     spec = load_spec(spec_version)
     leaves = [it["id"] for it in spec["items"]]
     leaf_meta = {it["id"]: it for it in spec["items"]}
-    floor_leaves = set(spec["critical_floor"]["leaves"])
 
     # --- per-leaf tallies ---
     per_leaf: dict[str, dict[str, Any]] = {
@@ -56,7 +51,6 @@ def aggregate_corpus(
             "item_no": leaf_meta[lid]["item_no"],
             "section": leaf_meta[lid]["section"],
             "label": leaf_meta[lid]["label"],
-            "critical_floor": lid in floor_leaves,
             "reported": t["reported"], "partial": t["partial"],
             "not_reported": t["not_reported"], "not_applicable": t["not_applicable"],
             "excluded": t["excluded"],
@@ -81,15 +75,6 @@ def aggregate_corpus(
                 if ev.get("resolved"):
                     resolved_ev += 1
 
-    # --- floor distribution ---
-    floor_dist = None
-    if floors:
-        by_id = {f.get("manuscript_id"): f for f in floors}
-        aligned = []
-        for i, a in enumerate(assessments):
-            aligned.append(by_id.get(a["manuscript_id"], floors[i] if i < len(floors) else None))
-        floor_dist = _counter(f["status"] for f in aligned if f)
-
     # --- worst-reported leaves (lowest reported_rate among scored leaves) ---
     scored_rows = [r for r in leaf_rows if r["reported_rate"] is not None]
     worst = sorted(scored_rows, key=lambda r: r["reported_rate"])[:8]
@@ -104,11 +89,9 @@ def aggregate_corpus(
             "evidence_total": total_ev, "evidence_resolved": resolved_ev,
             "papers_with_unresolved_evidence": papers_with_unresolved,
         },
-        "critical_floor_distribution": floor_dist,
         "per_leaf": leaf_rows,
         "lowest_reported_leaves": [
-            {"id": r["id"], "label": r["label"], "reported_rate": r["reported_rate"],
-             "critical_floor": r["critical_floor"]}
+            {"id": r["id"], "label": r["label"], "reported_rate": r["reported_rate"]}
             for r in worst
         ],
     }

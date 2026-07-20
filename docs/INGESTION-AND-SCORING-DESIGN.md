@@ -1,5 +1,11 @@
 # Ingestion & Scoring — Design Note v0.2
 
+> **Superseded in part (2026-07-19):** the **critical floor** and its
+> indeterminate-gating (a floor failure downgraded to "check supplement" when no
+> supplement was ingested) were removed. `supplement_status` is still stamped and
+> surfaced on every render, but there is no longer a floor gate to qualify. Treat
+> "floor" passages below as historical; see `docs/DECISIONS.md`.
+
 **Black Swan Causal Labs · TARGET Checklist MCP**
 Status: proposal for sign-off. Supersedes nothing in the built vertical slice;
 extends the ingestion, governance, and provenance layers.

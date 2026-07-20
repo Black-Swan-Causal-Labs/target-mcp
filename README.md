@@ -19,8 +19,8 @@ Built and proven end-to-end:
 - **Spec layer** — the 21 published items decomposed into **39 scoreable leaf
   subitems**, encoded as versioned YAML (`target_mcp/specs/target-0.1.0.yaml`)
   with own-words intent, verdict boundaries, signal terms, the 6x↔7x
-  specification/emulation pairing, applicability rules, and a critical-floor
-  overlay. Structurally validated on load (`spec.py`).
+  specification/emulation pairing, and applicability rules. Structurally
+  validated on load (`spec.py`).
 - **Ingestion layer** — PDF/text/docx → `SectionMap` with character-offset,
   **source-tagged** section spans (main vs `supplement:<file>`), protocol-table
   and flow-diagram detection, extractor version + text hash stamps, and
@@ -40,23 +40,23 @@ Built and proven end-to-end:
   share one validation path that enforces leaf coverage, verdict vocabulary, and
   mandatory verbatim evidence resolved to spans with a `source_document` tag
   (`assess.py`).
-- **Governance layer** — `check_critical_floor`, a pure-logic gate over the
-  non-waivable leaves. A floor failure is reported as **`indeterminate — check
-  supplement`** rather than `fail` when no supplement was ingested
-  (`supplement_status` not in the confident set), because floor-critical
-  content routinely lives in supplements (`governance.py`).
+- **Rendering layer** — `render_checklist` projects a finalized assessment onto
+  the published TARGET checklist form (all 39 rows, verbatim item wording under
+  CC BY-ND, a Location-reported column from the resolved evidence spans; the
+  enriched view adds verdict + evidence). `render_checklist_docx` writes the
+  same as a submission-ready Word file (`render.py`, `render_docx.py`).
 - **Corpus & validation layers** — `aggregate_corpus` rolls many assessments
   into per-item completeness rates with coverage denominators (`corpus.py`);
   `validate.py` provides blind human coding-sheet generation and per-leaf
   agreement (raw, Cohen's κ, Gwet's AC1, sensitivity/specificity) against a
   gold standard.
-- **Composition layer** — FastMCP server (`server.py`) exposing nine tools.
+- **Composition layer** — FastMCP server (`server.py`) exposing ten tools.
   The primary manuscript flow is **`parse_manuscript`** (parse the file you
   were given, with `supplements=` when available) → **`assess_manuscript`** →
-  **`check_critical_floor`**. Supporting tools: `parse_pmcid` (corpus/batch or
-  OA-supplement fetch), `submit_scaffold_verdicts` (scaffold-mode completion),
-  `get_checklist` (introspect the spec), `aggregate_corpus`,
-  `build_coding_sheet`, and `validate_against_gold`.
+  **`submit_scaffold_verdicts`** → **`render_checklist`** (or
+  `render_checklist_docx`). Supporting tools: `parse_pmcid` (corpus/batch or
+  OA-supplement fetch), `get_checklist` (introspect the spec),
+  `aggregate_corpus`, `build_coding_sheet`, and `validate_against_gold`.
 
 Not yet built (see design doc): `assess_item`, `check_emulation_coherence`,
 `export_identifiability_spec`, publisher-site supplement retrieval (beyond the
@@ -72,13 +72,15 @@ each evidence item carries its resolved span, section, and `source_document`.
 A span is only meaningful alongside the extractor version and text hash, so
 they travel together.
 
-## Critical floor is a governance overlay, not the published guideline
+## Reporting completeness, not a pass/fail verdict
 
-TARGET presents all 21 items as essential minimum items with **no tiering**.
-The non-waivable floor (`6d/7d` time zero, `6f/7f` causal estimand, `6g/7g.i`
-identifying assumptions) is a **Black Swan Causal Labs** overlay for the
-governed lane, stamped `provenance: bscl_overlay` and kept separable from the
-encoded guideline. Do not present it as TARGET's own definition.
+The instrument scores how *completely* a manuscript reports what the checklist
+requires — not study quality, and it issues **no pass/fail judgment**. TARGET
+presents all 21 items as essential minimum items with **no tiering**, and this
+tool follows suit: the output is the 39 per-leaf verdicts with evidence and a
+completeness tally. (An earlier "critical floor" — a BSCL pass/fail overlay over
+six leaves — was removed in 2026-07-19 as off-message and confusing; see
+`docs/DECISIONS.md`.) Do not present a verdict matrix as TARGET compliance.
 
 ## Install
 
@@ -102,9 +104,10 @@ Judge mode needs `ANTHROPIC_API_KEY` in the environment. The pinned model is
 .venv/bin/python -m pytest tests/ -q
 ```
 
-Covers spec validation, section mapping and quote resolution, the full
-finalize + floor path, evidence-required and coverage-mismatch guards,
-applicability rules, abstract-only full-text gating, and prompt-hash
+Covers spec validation, section mapping and quote resolution, the finalize +
+evidence-resolution path, evidence-required and coverage-mismatch guards,
+applicability rules, abstract-only full-text gating, corpus aggregation,
+the validation harness, checklist rendering (Markdown + .docx), and prompt-hash
 stability.
 
 ## Licensing / commons hygiene

@@ -125,16 +125,31 @@ def _manuscript_block(sm: SectionMap) -> str:
     return "\n".join(parts)
 
 
+_ABSTRACT_ONLY_MAX_CHARS = 6000
+
+
 def select_leaves(sm: SectionMap, spec: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
-    """Full-text gating: with no methods/results sections, only
-    abstract-supportable leaves are assessable."""
+    """Gate the full checklist vs the abstract-supportable subset.
+
+    Full assessment applies when the document carries body text, not just an
+    abstract. Detected Methods+Results headings satisfy this, but the gate does
+    NOT depend on them: a substantial body (>= ~6000 chars) also qualifies, so
+    legitimate journal layouts the sectioner mishandles — Methods printed after
+    Discussion in accepted-manuscript proofs, or headings the regex misses — are
+    still fully assessed. The section map is a hint for locating evidence, not a
+    gate on whether the content exists. Only genuinely abstract-only input (a
+    short paste with no body) is restricted to abstract-supportable leaves."""
     present = {s.name for s in sm.sections}
-    full_text = "methods" in present and "results" in present
-    if full_text:
+    has_body_headings = "methods" in present and "results" in present
+    substantial = len(sm.full_text) >= _ABSTRACT_ONLY_MAX_CHARS
+    if has_body_headings or substantial:
         return [it["id"] for it in spec["items"]], []
     scored = [it["id"] for it in spec["items"] if it.get("abstract_supportable")]
     excluded = [
-        {"id": it["id"], "reason": "full text unavailable; leaf not abstract-supportable"}
+        {"id": it["id"],
+         "reason": ("only an abstract-length document was ingested "
+                    f"({len(sm.full_text)} chars, no Methods/Results body); "
+                    "leaf not abstract-supportable")}
         for it in spec["items"] if not it.get("abstract_supportable")
     ]
     return scored, excluded
@@ -174,6 +189,23 @@ def build_judge_request(
 
 class VerdictValidationError(ValueError):
     pass
+
+
+def _unresolved_reason(sm: SectionMap, quote: str) -> str:
+    """Actionable explanation for why a quote failed to resolve, so an agent in
+    the loop can correct the quote rather than face an opaque flag."""
+    words = [w for w in quote.split() if len(w) > 3]
+    if words:
+        text_lc = sm.full_text.lower()
+        hits = sum(1 for w in words if w.lower() in text_lc)
+        if hits / len(words) < 0.5:
+            return ("quote not found in the ingested text; most of its words are "
+                    "absent, so it may be paraphrased, mis-transcribed, or drawn "
+                    "from a supplement/section that was not ingested. Re-quote "
+                    "verbatim from the provided text.")
+    return ("quote not found as a contiguous verbatim span (wording or internal "
+            "punctuation likely differs from the source). Copy the exact "
+            "characters from the ingested text, keeping it short.")
 
 
 def finalize_assessment(
@@ -227,7 +259,8 @@ def finalize_assessment(
                 if span is None:
                     item["evidence"].append(
                         {"quote": q, "span": None, "section": None,
-                         "source_document": None, "resolved": False}
+                         "source_document": None, "resolved": False,
+                         "reason": _unresolved_reason(sm, q)}
                     )
                     unresolved.append(raw["id"])
                 else:

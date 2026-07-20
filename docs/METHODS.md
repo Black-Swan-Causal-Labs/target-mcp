@@ -1,5 +1,13 @@
 # TARGET Checklist MCP Server — Methods
 
+> **Superseded in part (2026-07-19):** the **critical floor** described below was
+> removed from the instrument. It was a BSCL pass/fail overlay over six leaves,
+> not part of published TARGET, and confusing in practice (a quality gate layered
+> on completeness scoring). The tool now outputs per-leaf verdicts + evidence + a
+> completeness tally with no pass/fail claim. Treat every "critical floor" /
+> "pillar" passage here as historical; see `docs/DECISIONS.md`. A full methods
+> rewrite is part of open-source prep.
+
 **Black Swan Causal Labs**
 Instrument version: spec `target-0.1.0`, ingest `target-mcp-ingest/0.1.0`, judge prompt `judge-prompt/0.1.0`
 Document date: 2026-07-08
