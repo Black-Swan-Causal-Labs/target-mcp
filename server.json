@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.json",
-  "name": "io.github.Black-Swan-Causal-Labs/target-checklist",
+  "name": "com.blackswancausallabs/target-mcp",
   "description": "Score how completely a target-trial-emulation study reports what the TARGET guideline requires.",
   "version": "0.1.1",
   "repository": {
