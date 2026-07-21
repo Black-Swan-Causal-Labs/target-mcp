@@ -50,7 +50,7 @@ Built and proven end-to-end:
   `validate.py` provides blind human coding-sheet generation and per-leaf
   agreement (raw, Cohen's κ, Gwet's AC1, sensitivity/specificity) against a
   gold standard.
-- **Composition layer** — FastMCP server (`server.py`) exposing ten tools.
+- **Composition layer** — FastMCP server (`server.py`) exposing eleven tools.
   The primary manuscript flow is **`parse_manuscript`** (parse the file you
   were given, with `supplements=` when available) → **`assess_manuscript`** →
   **`submit_scaffold_verdicts`** → **`render_checklist`** (or
@@ -84,16 +84,67 @@ six leaves — was removed in 2026-07-19 as off-message and confusing; see
 
 ## Install
 
+The server and the optional orchestration skill ship together in this repo, but
+they **activate through two separate mechanisms** — installing one does not
+enable the other. Getting the files (clone/download) gives you both; then do the
+two activation steps below.
+
+### 1. Install the server
+
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -e .
 ```
 
-## Run as an MCP server
+Run it standalone (stdio transport) to smoke-test:
 
 ```bash
-.venv/bin/target-mcp          # stdio transport
+.venv/bin/target-mcp
 ```
+
+### 2. Register the server with your MCP client
+
+Add it to the client's MCP config with an **absolute** path. For Claude Desktop
+that file is `~/Library/Application Support/Claude/claude_desktop_config.json`
+(macOS); for a Claude Code project use `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "target-checklist": {
+      "command": "/ABSOLUTE/PATH/TO/target-mcp/.venv/bin/python",
+      "args": ["-m", "target_mcp.server"]
+    }
+  }
+}
+```
+
+Restart / reconnect the client. Confirm it exposes **11 tools** (a stale process
+may show fewer — respawn it). The server is now fully usable on its own: any MCP
+client can run parse → assess → submit → render in a single scaffold pass.
+
+### 3. (Optional, Claude Code only) Activate the fan-out skill
+
+`.claude/skills/target-checklist-fanout/` encodes the parallel-subagent
+orchestration that scores the 39 leaves concurrently (~2 min vs ~20 min). It is
+**an accelerator, not a dependency** — it only works in clients that can spawn
+subagents (the Claude Code CLI, or the Claude Desktop **Code/Cowork** tabs; the
+plain **Chat** tab cannot, and non-Claude clients like Codex ignore it). Without
+it, everything still works via the single-pass fallback.
+
+A Claude Code session discovers the skill when its working directory is this
+repo. To make it available in **every** session regardless of directory, copy it
+to the user scope:
+
+```bash
+mkdir -p ~/.claude/skills
+cp -R .claude/skills/target-checklist-fanout ~/.claude/skills/
+```
+
+For the skill to actually run, all three must be present: the **server**
+(step 2), the **skill** (this step), and a **subagent-capable client**.
+
+### Judge mode (headless/batch, optional)
 
 Judge mode needs `ANTHROPIC_API_KEY` in the environment. The pinned model is
 `claude-sonnet-5` by default; override with `TARGET_JUDGE_MODEL`.
