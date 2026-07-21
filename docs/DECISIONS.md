@@ -7,6 +7,24 @@ Format: **what** — why — status.
 
 ---
 
+## 2026-07-20 · Launched: Apache-2.0, PyPI, DNS-namespaced MCP registry
+Went public on GitHub + PyPI (`target-mcp`) + the MCP registry
+(`com.blackswancausallabs/target-mcp`).
+- **License:** Apache-2.0 (patent grant fits a lab shipping an instrument);
+  checklist wording stays CC BY-ND (see NOTICE). PEP 639 SPDX
+  `license = "Apache-2.0"` in pyproject so PyPI shows a clean label, not the full
+  text (that fix drove the 0.1.0→0.1.1 bump).
+- **Registry namespace = DNS, not GitHub.** Chose `com.blackswancausallabs/*`
+  (DNS-verified, already used for `dagstudio-mcp`) over `io.github.*`, which 403'd
+  because it needs *public* GitHub org membership. DNS auth uses the ECDSA P-384
+  key at `~/.config/mcp-publisher/bscl-mcp-dns-key.pem`.
+- **Gotchas hit, so a future publish doesn't:** description ≤100 chars; `$schema`
+  must be the current `.../2025-12-11/server.schema.json` (date + filename both
+  moved); registry JWT expires fast (login right before publish); **PyPI ownership
+  proof** = `<!-- mcp-name: … -->` must be in the PyPI package README, and PyPI is
+  immutable so that meant a 0.1.2 re-upload before the registry accepted it.
+- Status: done. Next = promotional (video + LinkedIn), then gold-standard validation.
+
 ## 2026-07-20 · Batch corpus runs are a headless CLI, not an MCP tool
 `target-mcp-corpus` (`corpus_run.py`) runs concurrent fetch+judge over a PMCID
 list; `run_corpus()` uses a bounded ThreadPoolExecutor (both `retrieve_bundle`

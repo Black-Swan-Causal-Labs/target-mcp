@@ -2,6 +2,24 @@
 
 Snapshot for picking the project back up cold. Last updated 2026-07-20.
 
+## 🚀 LAUNCHED (2026-07-20) — public on all three surfaces
+
+- **GitHub:** https://github.com/Black-Swan-Causal-Labs/target-mcp (public, Apache-2.0)
+- **PyPI:** `target-mcp` — `pip install target-mcp` (current **0.1.2**)
+- **MCP registry:** `com.blackswancausallabs/target-mcp` (title "TARGET Checklist MCP"),
+  published under the BSCL **DNS-verified** namespace (same as `dagstudio-mcp`).
+
+Publish auth = DNS, not GitHub: key at `~/.config/mcp-publisher/bscl-mcp-dns-key.pem`
+(ECDSA P-384 PKCS#8 PEM). `mcp-publisher login dns` wants the raw scalar as **hex**
+(`-algorithm ecdsap384`); extract with `openssl pkey -in <pem> -text -noout`, take the
+`priv:` bytes, strip the leading `00` sign byte → 96 hex chars. Registry JWT expires
+fast — log in immediately before `publish`. **PyPI ownership gate:** the registry
+requires `<!-- mcp-name: com.blackswancausallabs/target-mcp -->` in the PyPI package
+README (it reads PyPI's `info.description`); PyPI is immutable, so any README change =
+a version bump + re-upload before re-publishing. To ship a new version: bump
+`pyproject.toml` + `server.json` (both `version` fields), rebuild, `twine upload`,
+then `mcp-publisher login dns … && mcp-publisher publish`. See DECISIONS.md.
+
 ## What this is
 
 An MCP server that operationalizes the **TARGET reporting guideline** (Cashin
@@ -98,6 +116,7 @@ serial. NOT an MCP tool (a multi-hour call would blow the client timeout).
 ## Run it
 
 ```bash
+pip install target-mcp                         # published — or from source below
 python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/python -m pytest tests/ -q          # 44 tests
 .venv/bin/target-mcp                           # stdio MCP server
@@ -140,12 +159,12 @@ parameter, which `run_judge` omits.
 
 ## Next steps (in rough priority)
 
-1. **Open-source prep → MCP registry** — the near-term launch path. Needs: a
-   LICENSE (+ the CC BY-ND provenance note for the checklist wording), a
-   git-history secret scan (`.keyfile` is git-ignored; verify nothing leaked),
-   a CONTRIBUTING/setup doc, and a `server.json` manifest for the official MCP
-   registry (registry.modelcontextprotocol.io). README install/skill/batch docs
-   are done. This gates public discoverability + the LinkedIn/video launch.
+1. ~~**Open-source prep → MCP registry**~~ ✅ **DONE 2026-07-20.** Apache-2.0
+   LICENSE + NOTICE, secret scan (clean), CONTRIBUTING.md, `server.json`, published
+   to GitHub + PyPI + the MCP registry. Remaining launch work is **promotional**:
+   the demo video (recommend the parallel fan-out on a real BMJ/NEJM paper →
+   rendered checklist) and the LinkedIn post (drafted; add `pip install target-mcp`
+   + the registry/repo links).
 2. **Gold-standard validation** — the binding gate before any completeness rate
    is a *scientific claim*. Harness built (`build_coding_sheet` → human coding →
    `validate_against_gold`); human double-coding of 50–100 studies is the
