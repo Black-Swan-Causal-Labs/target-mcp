@@ -16,8 +16,9 @@ the way they are.
 
 All layers work and are exercised: spec → ingestion (supplement-aware) →
 retrieval (Europe PMC) → assessment (scaffold + judge) → rendering (completed
-checklist form, Markdown + .docx) → corpus aggregation, plus a validation
-harness. **35 tests pass** (`.venv/bin/python -m pytest tests/ -q`).
+checklist form, Markdown + HTML + .docx, each carrying the assessed paper's full
+APA citation) → corpus aggregation (single + **concurrent batch runner**), plus
+a validation harness. **44 tests pass** (`.venv/bin/python -m pytest tests/ -q`).
 
 > **The critical floor was removed (2026-07-19).** It was a BSCL pass/fail
 > overlay over six leaves — not part of published TARGET, and a source of
@@ -78,12 +79,29 @@ Two assessment modes: **scaffold** (default; the agent in the loop scores, the
 server validates) and **judge** (server makes its own pinned model call — for
 headless/batch runs; needs `ANTHROPIC_API_KEY`).
 
+Every render carries the assessed paper's **full APA citation** (agent-supplied
+via `parse_manuscript citation=`, or auto-built from JATS on `parse_pmcid`);
+`submit_scaffold_verdicts` returns the stamped deliverable inline as **HTML by
+default** (`report_formats=` opts into markdown/docx — the old triple bundle
+caused a client timeout).
+
+**Parallel scoring** is validated but lives client-side: the fan-out skill at
+`.claude/skills/target-checklist-fanout/` drives a Claude Code orchestrator to
+split the 39 leaves across subagents (~2 min vs ~20). It is an accelerator, not
+a server feature; portability answer is a future server-side parallel judge.
+
+**Batch corpus runs** are headless via the `target-mcp-corpus` CLI
+(`corpus_run.py`): concurrent fetch+judge over a PMCID list with failure
+isolation, retries, and roll-up. ~300 papers ≈ 1–1.5h at 12 workers vs ~10–20h
+serial. NOT an MCP tool (a multi-hour call would blow the client timeout).
+
 ## Run it
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e .
-.venv/bin/python -m pytest tests/ -q          # 35 tests
+.venv/bin/python -m pytest tests/ -q          # 44 tests
 .venv/bin/target-mcp                           # stdio MCP server
+.venv/bin/target-mcp-corpus ids.txt -o out/   # headless batch (judge mode)
 ```
 Judge mode needs `ANTHROPIC_API_KEY` in the env (kept in a git-ignored
 `.keyfile` locally; never committed). Pinned model `claude-sonnet-5`
@@ -102,9 +120,11 @@ parameter, which `run_judge` omits.
 | `target_mcp/render.py` | Completed-checklist projection (published wording, Location column) |
 | `target_mcp/render_docx.py` | .docx serializer of a render_checklist report (python-docx) |
 | `target_mcp/render_html.py` | self-contained HTML serializer (canvas theme, provenance stamp) |
-| `target_mcp/corpus.py` | `aggregate_corpus` |
+| `target_mcp/corpus.py` | `aggregate_corpus` (pure roll-up) |
+| `target_mcp/corpus_run.py` | Concurrent batch runner + `target-mcp-corpus` CLI |
 | `target_mcp/validate.py` | Blind coding sheets + per-leaf agreement |
 | `target_mcp/server.py` | The 11 MCP tools, structured I/O, output schemas |
+| `.claude/skills/target-checklist-fanout/` | Claude Code fan-out orchestration skill |
 | `docs/DECISIONS.md` | Decision log — read this first |
 | `docs/INGESTION-AND-SCORING-DESIGN.md` | Supplement/table/materiality design note |
 | `docs/pilot-2026-07-08.md` | First corpus snapshot (n=12) |
@@ -120,21 +140,29 @@ parameter, which `run_judge` omits.
 
 ## Next steps (in rough priority)
 
-1. **Gold-standard validation** — the binding gate before any completeness rate
-   is a claim. Harness is built (`build_coding_sheet` → human coding →
-   `validate_against_gold`); the human double-coding of 50–100 studies is the
-   outstanding *human* effort. Consider designing the coding protocol +
-   inter-coder reconciliation.
-2. **Open-source prep** — LICENSE (+ CC BY-ND provenance note for the checklist),
-   git-history secret scan, CONTRIBUTING/setup section.
-3. **Table extraction** — a vision pass for the ~4% of evidence quotes that don't
+1. **Open-source prep → MCP registry** — the near-term launch path. Needs: a
+   LICENSE (+ the CC BY-ND provenance note for the checklist wording), a
+   git-history secret scan (`.keyfile` is git-ignored; verify nothing leaked),
+   a CONTRIBUTING/setup doc, and a `server.json` manifest for the official MCP
+   registry (registry.modelcontextprotocol.io). README install/skill/batch docs
+   are done. This gates public discoverability + the LinkedIn/video launch.
+2. **Gold-standard validation** — the binding gate before any completeness rate
+   is a *scientific claim*. Harness built (`build_coding_sheet` → human coding →
+   `validate_against_gold`); human double-coding of 50–100 studies is the
+   outstanding *human* effort. Can launch the tool without this; just don't
+   publish corpus rates as findings until it's done.
+3. **Server-side parallel judge** — the portable version of the validated
+   client-side fan-out: judge mode, internally concurrent (the `corpus_run.py`
+   ThreadPool pattern applied within one paper's 39 leaves, or an Anthropic
+   Message Batches judge). Gives every client the fast path + truthful model
+   provenance, no subagent support required. `fetch_fn`/`judge_fn` seam is ready.
+4. **Table extraction** — a vision pass for the ~4% of evidence quotes that don't
    resolve (mostly two-column protocol tables). Design note steps 4–5.
-4. **MCP 2026-07-28 follow-ups** (spec ships 2026-07-28; RC out):
-   - Bump `mcp[cli]` when the stable Tier-1 Python SDK lands; smoke-test stdio.
-   - Structured I/O already done.
-   - Future: MCP Apps (inline interactive dashboard from the server), Tasks
-     (long-running corpus batch), OAuth 2.1 (only if hosted remotely).
-5. **Deferred tools** — `assess_item`, `check_emulation_coherence`,
+5. **MCP 2026-07-28 follow-ups**: bump `mcp[cli]` when the stable Tier-1 Python
+   SDK lands (smoke-test stdio); future MCP Apps (inline dashboard), Tasks
+   (long-running batch), OAuth 2.1 (only if hosted remotely).
+6. **Deferred** — local assessment persistence + contribution DB (see the
+   deferred-persistence memory); `assess_item`, `check_emulation_coherence`,
    `export_identifiability_spec` (DAG Studio bridge), materiality layer.
 
 ## Watch-outs

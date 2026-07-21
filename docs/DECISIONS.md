@@ -7,6 +7,34 @@ Format: **what** — why — status.
 
 ---
 
+## 2026-07-20 · Batch corpus runs are a headless CLI, not an MCP tool
+`target-mcp-corpus` (`corpus_run.py`) runs concurrent fetch+judge over a PMCID
+list; `run_corpus()` uses a bounded ThreadPoolExecutor (both `retrieve_bundle`
+and `run_judge` build their own client per call → thread-safe), isolates
+per-paper failures, retries transient errors, and rolls up via `aggregate_corpus`.
+- **Why a CLI, not a tool:** a 300-paper run is 1–1.5h; a multi-hour MCP tool
+  call would blow the client's request timeout (same failure class as the render
+  bundle). Interactive re-roll-up stays available via `aggregate_corpus`.
+- **Why now:** judge is ~a few min/paper (one API call, ~7k output tokens) — the
+  "20 min/paper" fear was the *interactive scaffold* experience. The real gap was
+  that nothing ran concurrently (serial ~10–20h). `fetch_fn`/`judge_fn` are
+  injectable — testable without net/API, and the seam for a Message-Batches judge.
+- Status: done; 44 tests.
+
+## 2026-07-20 · Parallel fan-out is a client-side skill, not a server feature
+The validated parallel scoring (split 39 leaves across subagents, ~2 min vs ~20)
+is packaged as a Claude Code skill (`.claude/skills/target-checklist-fanout/`),
+not baked into the server.
+- **Why:** subagent fan-out is a client capability (Claude Code CLI / Desktop
+  Code+Cowork tabs) — it doesn't exist in the Desktop Chat tab or non-Claude MCP
+  clients, so it can't be a portable server guarantee. The skill is an accelerator
+  with a single-pass fallback; all MCP calls stay with the orchestrator so
+  subagents need no server reachability. The portable version is the future
+  server-side parallel judge (which can also stamp the model truthfully).
+- **Provenance rule baked in:** pin the subagent model + attest the same one to
+  `submit`, else scaffold can only honestly say `model unspecified`.
+- Status: done (skill + README packaging); 44 tests.
+
 ## 2026-07-20 · Full APA reference of the assessed manuscript on every render
 Renders identified the paper only by the short `manuscript_id` (e.g. a PMCID),
 which is not a citation. New `SectionMap.citation` field flows parse →
