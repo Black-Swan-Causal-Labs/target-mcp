@@ -92,9 +92,13 @@ two activation steps below.
 ### 1. Install the server
 
 ```bash
+git clone https://github.com/Black-Swan-Causal-Labs/target-mcp.git
+cd target-mcp
 python3 -m venv .venv
 .venv/bin/pip install -e .
 ```
+
+(Once published to PyPI: `pip install target-mcp`.)
 
 Run it standalone (stdio transport) to smoke-test:
 
