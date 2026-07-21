@@ -149,6 +149,32 @@ For the skill to actually run, all three must be present: the **server**
 Judge mode needs `ANTHROPIC_API_KEY` in the environment. The pinned model is
 `claude-sonnet-5` by default; override with `TARGET_JUDGE_MODEL`.
 
+## Batch / corpus runs
+
+Scoring hundreds of papers is a **headless** job, not an interactive MCP call (a
+multi-hour tool call would blow the client's request timeout). Use the
+`target-mcp-corpus` CLI: it fetches + judges a list of PMCIDs **concurrently**,
+isolates per-paper failures, retries transient errors, and rolls up the
+aggregate.
+
+```bash
+# ids.txt: one PMCID per line (#-comments and blanks ignored)
+ANTHROPIC_API_KEY=sk-... target-mcp-corpus ids.txt -o out/ -j 12
+```
+
+- `-j/--workers` bounds concurrency (default 8; raise toward your API rate
+  limit). Judge is ~a few minutes/paper, so wall-clock ≈ `papers / workers ×
+  per-paper` — e.g. 300 papers at 12 concurrent ≈ 1–1.5h, versus ~10–20h serial.
+- `-o/--out-dir` writes one JSON per assessment plus `aggregate.json` and
+  `summary.json` (with per-paper stamps, verdict tallies, and any failures).
+  Without `-o`, the aggregate prints to stdout.
+- `--model` overrides the pinned judge model; `--no-supplements` skips
+  supplement retrieval.
+
+Judge mode records the **resolved** model id per paper, so a corpus aggregate is
+truthfully provenanced and caller-independent. Re-roll-up saved assessments any
+time with the `aggregate_corpus` MCP tool.
+
 ## Tests
 
 ```bash

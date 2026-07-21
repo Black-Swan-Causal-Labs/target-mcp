@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 target-mcp = "target_mcp.server:main"
+target-mcp-corpus = "target_mcp.corpus_run:main"
 
 [build-system]
 requires = ["setuptools>=68"]
