@@ -1,5 +1,7 @@
 # TARGET Checklist MCP Server
 
+<!-- mcp-name: com.blackswancausallabs/target-mcp -->
+
 An MCP server that operationalizes the **TARGET** reporting guideline
 (TrAnsparent ReportinG of observational studies Emulating a Target trial;
 Cashin et al., JAMA/BMJ, September 2025) as a deterministic, provenanced

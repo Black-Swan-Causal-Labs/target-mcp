@@ -3,7 +3,7 @@
   "name": "com.blackswancausallabs/target-mcp",
   "title": "TARGET Checklist MCP",
   "description": "Score how completely a target-trial-emulation study reports what the TARGET guideline requires.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": {
     "url": "https://github.com/Black-Swan-Causal-Labs/target-mcp",
     "source": "github"
@@ -13,7 +13,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "target-mcp",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "transport": { "type": "stdio" }
     }
   ]
