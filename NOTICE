@@ -1,0 +1,29 @@
+TARGET Checklist MCP Server
+Copyright 2026 Black Swan Causal Labs
+
+Licensed under the Apache License, Version 2.0 (the "License"); see the LICENSE
+file. You may not use this software except in compliance with the License.
+
+--------------------------------------------------------------------------------
+Third-party / upstream attribution
+--------------------------------------------------------------------------------
+
+This software operationalizes the TARGET reporting guideline:
+
+    Cashin AG, Hansford HJ, Hernán MA, Swanson SA, Lee H, Jones MD, et al.
+    Transparent Reporting of Observational Studies Emulating a Target Trial:
+    The TARGET Statement. JAMA 2025. doi:10.1001/jama.2025.13350
+    (co-published BMJ 2025;390:e087179).
+
+The encoded specification (target_mcp/specs/*.yaml) re-expresses the *intent* of
+each checklist item in original wording and does not reproduce the published
+checklist text. Where the published item wording IS reproduced verbatim — the
+OFFICIAL_TEXT mapping in target_mcp/render.py, used to project a completed
+checklist onto the published form — it is © 2025 Cashin et al. and reproduced
+under the Creative Commons Attribution-NoDerivatives 4.0 International license
+(CC BY-ND 4.0), with attribution. That wording is not covered by the Apache-2.0
+grant above and must not be modified when redistributed.
+
+The bundled TARGET logo (target_mcp/assets/target-logo.png) is a trademark of the
+TARGET group, included only for the author self-report ("official") view. It is
+not licensed for endorsement use and is off by default.

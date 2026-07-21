@@ -3,6 +3,15 @@ name = "target-mcp"
 version = "0.1.0"
 description = "MCP server operationalizing the TARGET reporting guideline (Cashin et al., JAMA/BMJ 2025) as a deterministic, provenanced scoring engine for target trial emulation studies"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Black Swan Causal Labs" }]
+readme = "README.md"
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
 dependencies = [
     "mcp[cli]>=1.0",
     "pypdf>=5.0",
