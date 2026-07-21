@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.json",
   "name": "io.github.Black-Swan-Causal-Labs/target-checklist",
   "description": "Score how completely an observational target-trial-emulation study reports what the TARGET guideline (Cashin et al., JAMA/BMJ 2025) requires, with verbatim evidence and provenance.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "repository": {
     "url": "https://github.com/Black-Swan-Causal-Labs/target-mcp",
     "source": "github"
@@ -11,7 +11,7 @@
     {
       "registryType": "pypi",
       "identifier": "target-mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": { "type": "stdio" }
     }
   ]
