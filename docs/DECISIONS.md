@@ -272,7 +272,7 @@ review case.
   two-mode architecture is intentional. Project will be published open source.
 - **Open-source prep still TODO:** LICENSE (code license distinct from the
   CC BY-ND checklist provenance note), git-history secret scan, CONTRIBUTING.
-  `.keyfile` is git-ignored and was never committed.
+  `.anthropic-api-key` is git-ignored and was never committed.
 - Status: decision recorded; prep not yet done.
 
 ## 2026-07-19 · Scaffold is the default assessment mode

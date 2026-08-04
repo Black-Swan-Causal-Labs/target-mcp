@@ -123,7 +123,7 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/target-mcp-corpus ids.txt -o out/   # headless batch (judge mode)
 ```
 Judge mode needs `ANTHROPIC_API_KEY` in the env (kept in a git-ignored
-`.keyfile` locally; never committed). Pinned model `claude-sonnet-5`
+`.anthropic-api-key` locally; never committed). Pinned model `claude-sonnet-5`
 (override `TARGET_JUDGE_MODEL`); note this model deprecates the temperature
 parameter, which `run_judge` omits.
 
