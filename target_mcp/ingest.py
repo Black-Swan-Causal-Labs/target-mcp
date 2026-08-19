@@ -17,7 +17,7 @@ from typing import Any
 
 from pypdf import PdfReader
 
-INGEST_VERSION = "0.2.0"
+INGEST_VERSION = "0.3.0"
 
 
 def _extractor_stamp(engine: str) -> str:
@@ -186,7 +186,7 @@ def _pypdf_pages(path: Path) -> list[str]:
     return [p.extract_text() or "" for p in reader.pages]
 
 
-def _pdfplumber_pages(path: Path) -> list[str] | None:
+def _pdfplumber_pages(path: Path, **extract_kwargs: Any) -> list[str] | None:
     """Second-chance extractor. Accepted-manuscript proofs and some publisher
     PDFs have a weak/missing text layer under pypdf that pdfplumber recovers.
     Returns None if pdfplumber is unavailable or fails."""
@@ -196,7 +196,7 @@ def _pdfplumber_pages(path: Path) -> list[str] | None:
         return None
     try:
         with pdfplumber.open(str(path)) as pdf:
-            return [(pg.extract_text() or "") for pg in pdf.pages]
+            return [(pg.extract_text(**extract_kwargs) or "") for pg in pdf.pages]
     except Exception:
         return None
 
@@ -207,15 +207,54 @@ def _too_sparse(pages: list[str]) -> bool:
     return n >= 1 and (chars < 100 or chars < 25 * n)
 
 
+# Word boundaries. Some publisher PDFs (JAMA typesetting among them) position
+# every glyph individually instead of emitting space glyphs, so the text layer
+# extracts run-together: "Weconductedacomparativeeffectivenessstudy". A model
+# still reads that, but it is useless as evidence — the rendered checklist
+# quotes the ingested text verbatim, so unreadable spans reach the deliverable.
+# English prose runs ~0.13-0.18 spaces per non-newline character; the broken
+# extractions sit an order of magnitude below, so this threshold separates them
+# without touching documents that extracted normally.
+_MIN_SPACE_FRACTION = 0.08
+
+# pdfplumber infers a space wherever the horizontal gap between glyphs exceeds
+# x_tolerance (default 3.0pt — too coarse for these layouts); 1.0pt recovers the
+# boundaries. use_text_flow keeps the PDF's own content-stream order, so a page
+# carrying a sidebar (JAMA's Key Points box) does not interleave into the
+# abstract the way position-sorted extraction does. Applied ONLY as a repair: a
+# document that already extracted with normal spacing is never re-extracted, so
+# these settings cannot disturb text that was fine.
+_REPAIR_KWARGS = {"x_tolerance": 1.0, "use_text_flow": True}
+_REPAIR_ENGINE = "pdfplumber/x_tol=1.0+flow"
+
+
+def _space_fraction(pages: list[str]) -> float:
+    inline = "".join(pages).replace("\n", "")
+    return inline.count(" ") / len(inline) if inline else 0.0
+
+
+def _space_starved(pages: list[str]) -> bool:
+    return bool("".join(pages).strip()) and _space_fraction(pages) < _MIN_SPACE_FRACTION
+
+
 def _extract_pdf(path: Path) -> tuple[list[str], str]:
-    """Extract page texts via a fallback chain (pypdf -> pdfplumber). Returns
-    (pages, engine)."""
+    """Extract page texts via a fallback chain (pypdf -> pdfplumber), then repair
+    lost word boundaries if the winning extraction came out space-starved.
+    Returns (pages, engine)."""
     pages = _pypdf_pages(path)
     engine = "pypdf"
     if _too_sparse(pages):
         alt = _pdfplumber_pages(path)
         if alt is not None and len("".join(alt).strip()) > len("".join(pages).strip()):
             pages, engine = alt, "pdfplumber"
+    if _space_starved(pages):
+        repaired = _pdfplumber_pages(path, **_REPAIR_KWARGS)
+        if (
+            repaired is not None
+            and not _too_sparse(repaired)
+            and _space_fraction(repaired) > _space_fraction(pages)
+        ):
+            pages, engine = repaired, _REPAIR_ENGINE
     return pages, engine
 
 
@@ -436,7 +475,7 @@ def build_bundle(
     return SectionMap(
         source=main.source,
         manuscript_id=main.manuscript_id,
-        extractor_version=EXTRACTOR_VERSION,
+        extractor_version=main.extractor_version,
         text_sha256=hashlib.sha256(full_text.encode("utf-8")).hexdigest(),
         full_text=full_text,
         sections=sections,
