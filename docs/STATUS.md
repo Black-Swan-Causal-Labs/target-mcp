@@ -1,6 +1,6 @@
 # Status & handoff
 
-Snapshot for picking the project back up cold. Last updated 2026-07-20.
+Snapshot for picking the project back up cold. Last updated 2026-08-18.
 
 ## 🚀 LAUNCHED (2026-07-20) — public on all three surfaces
 
@@ -36,7 +36,7 @@ All layers work and are exercised: spec → ingestion (supplement-aware) →
 retrieval (Europe PMC) → assessment (scaffold + judge) → rendering (completed
 checklist form, Markdown + HTML + .docx, each carrying the assessed paper's full
 APA citation) → corpus aggregation (single + **concurrent batch runner**), plus
-a validation harness. **44 tests pass** (`.venv/bin/python -m pytest tests/ -q`).
+a validation harness. **46 tests pass** (`.venv/bin/python -m pytest tests/ -q`).
 
 > **The critical floor was removed (2026-07-19).** It was a BSCL pass/fail
 > overlay over six leaves — not part of published TARGET, and a source of
@@ -118,12 +118,12 @@ serial. NOT an MCP tool (a multi-hour call would blow the client timeout).
 ```bash
 pip install target-mcp                         # published — or from source below
 python3 -m venv .venv && .venv/bin/pip install -e .
-.venv/bin/python -m pytest tests/ -q          # 44 tests
+.venv/bin/python -m pytest tests/ -q          # 46 tests
 .venv/bin/target-mcp                           # stdio MCP server
 .venv/bin/target-mcp-corpus ids.txt -o out/   # headless batch (judge mode)
 ```
 Judge mode needs `ANTHROPIC_API_KEY` in the env (kept in a git-ignored
-`.keyfile` locally; never committed). Pinned model `claude-sonnet-5`
+`.anthropic-api-key` locally; never committed). Pinned model `claude-sonnet-5`
 (override `TARGET_JUDGE_MODEL`); note this model deprecates the temperature
 parameter, which `run_judge` omits.
 
@@ -133,7 +133,7 @@ parameter, which `run_judge` omits.
 |------|------|
 | `target_mcp/specs/target-0.1.0.yaml` | The 39-leaf encoded checklist (single source of truth) |
 | `target_mcp/spec.py` | Load + structural validation |
-| `target_mcp/ingest.py` | SectionMap, pypdf→pdfplumber extraction, path-vs-text guard, source-tagged spans |
+| `target_mcp/ingest.py` | SectionMap, pypdf→pdfplumber extraction + word-boundary repair, path-vs-text guard, source-tagged spans |
 | `target_mcp/retrieve.py` | Europe PMC JATS + supplement retrieval |
 | `target_mcp/assess.py` | Prompt build, judge + scaffold, `finalize_assessment` (one validation path) |
 | `target_mcp/render.py` | Completed-checklist projection (published wording, Location column) |
@@ -186,6 +186,12 @@ parameter, which `run_judge` omits.
 
 ## Watch-outs
 
+- **Unreleased ingestion fix in tree (2026-08-18):** `INGEST_VERSION` 0.3.0 adds
+  the word-boundary repair for glyph-positioned PDFs (see DECISIONS.md). PyPI
+  still ships **0.1.2 without it**, so a published-package user hitting such a
+  PDF still gets unreadable evidence quotes — ship it with the next version bump.
+  A *running* MCP server also holds the old module: reconnect the client for the
+  fix to take effect in-session.
 - Output-schema TypedDicts must stay `total=False` with `| None` on nullable
   fields; the SDK strictly validates returns.
 - The tool scores reporting completeness, not study quality, and makes no

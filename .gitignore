@@ -6,6 +6,9 @@ dist/
 build/
 scratch/
 .keyfile
+.anthropic-api-key
+*-api-key
+*.pem
 .env
 *.key
 .DS_Store

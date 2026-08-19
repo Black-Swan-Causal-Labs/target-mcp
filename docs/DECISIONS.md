@@ -7,6 +7,38 @@ Format: **what** — why — status.
 
 ---
 
+## 2026-08-18 · Ingestion repairs lost word boundaries; the bundle stamp tells the truth
+A real run on a JAMA Network Open paper rendered every evidence quote as
+run-together text (`Weconductedacomparativeeffectivenessstudy`). That publisher
+positions each glyph instead of emitting space characters, so both pypdf and
+pdfplumber-at-default return spaceless text.
+- **Why the existing fallback missed it:** `_too_sparse` triggers on *character
+  count*, and the text was plentiful — just spaceless. Verdicts were unaffected
+  (a model reads it fine); the damage landed entirely on the rendered artifact of
+  record, which quotes the ingested text verbatim.
+- **Fix:** `_space_starved` (space fraction < 0.08 — English prose runs 0.13–0.18,
+  the broken extraction ~0.02–0.03) triggers one repair re-extraction via
+  pdfplumber `x_tolerance=1.0, use_text_flow=True`, adopted only if it is not
+  sparse *and* improves spacing. Engine stamped `pdfplumber/x_tol=1.0+flow`.
+- **Both settings must ship together:** `x_tolerance` alone position-sorts the
+  page and interleaved a Key Points sidebar mid-sentence into the abstract;
+  `use_text_flow` preserves the PDF's own content-stream order.
+- **PyMuPDF rejected:** it solves this cleanly but is AGPL; this package is
+  Apache-2.0.
+- **A healthy document is never re-extracted,** so a tighter tolerance cannot
+  introduce spurious mid-word splits where nothing was wrong. Validated at 99.84%
+  word-level agreement against a PyMuPDF ground truth (only diff: a rotated
+  Kaplan–Meier axis label).
+- **Separate provenance bug fixed in the same pass:** `build_bundle` hardcoded
+  `extractor_version=EXTRACTOR_VERSION`, so *every* supplement merge mislabelled
+  the engine that actually read the main text. It now carries
+  `main.extractor_version`.
+- **Consequence:** ingested text changes → `text_sha256` and the provenance stamp
+  change. Re-issuing an earlier assessment yields a new stamp with identical
+  verdicts; that is correct, not drift.
+- Status: done in-tree, `INGEST_VERSION` 0.2.0 → 0.3.0, 46 tests. **Not released** —
+  PyPI still ships 0.1.2 with the old ingestion.
+
 ## 2026-07-20 · Launched: Apache-2.0, PyPI, DNS-namespaced MCP registry
 Went public on GitHub + PyPI (`target-mcp`) + the MCP registry
 (`com.blackswancausallabs/target-mcp`).
@@ -272,7 +304,7 @@ review case.
   two-mode architecture is intentional. Project will be published open source.
 - **Open-source prep still TODO:** LICENSE (code license distinct from the
   CC BY-ND checklist provenance note), git-history secret scan, CONTRIBUTING.
-  `.keyfile` is git-ignored and was never committed.
+  `.anthropic-api-key` is git-ignored and was never committed.
 - Status: decision recorded; prep not yet done.
 
 ## 2026-07-19 · Scaffold is the default assessment mode

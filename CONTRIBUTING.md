@@ -78,7 +78,7 @@ instrument:
 - Keep changes focused; one concern per PR.
 - Note any decision that future contributors shouldn't relitigate in
   `docs/DECISIONS.md` (newest first, `what — why — status`).
-- Never commit secrets. `.keyfile` is git-ignored; API keys belong in the
+- Never commit secrets. `.anthropic-api-key` is git-ignored; API keys belong in the
   environment, never in code, tests, or fixtures.
 
 ## Reporting issues

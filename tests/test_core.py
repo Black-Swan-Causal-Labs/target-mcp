@@ -341,6 +341,50 @@ def test_extraction_guards():
     assert not _looks_like_path("We emulated a target trial of drug A versus B in adults.")
 
 
+def test_space_starved_pdf_triggers_word_boundary_repair(monkeypatch):
+    """Some publisher PDFs position every glyph instead of emitting spaces, so
+    the text layer extracts run-together. Evidence quotes are rendered verbatim
+    from that text, so the repair pass must recover word boundaries — and must
+    leave a normally-spaced extraction untouched."""
+    from target_mcp import ingest
+
+    starved = ["Weconductedacomparativeeffectivenessstudyusingtargettrialemulation." * 4]
+    spaced = ["We conducted a comparative effectiveness study using target trial emulation. " * 4]
+
+    assert ingest._space_starved(starved) is True
+    assert ingest._space_starved(spaced) is False
+    assert ingest._space_starved([""]) is False  # empty is not "starved"
+
+    seen = {}
+
+    def fake_plumber(path, **kwargs):
+        seen.update(kwargs)
+        return spaced if kwargs.get("x_tolerance") else starved
+
+    monkeypatch.setattr(ingest, "_pypdf_pages", lambda p: starved)
+    monkeypatch.setattr(ingest, "_pdfplumber_pages", fake_plumber)
+    pages, engine = ingest._extract_pdf(Path("glyph-positioned.pdf"))
+    assert pages == spaced
+    assert engine == ingest._REPAIR_ENGINE
+    assert seen == ingest._REPAIR_KWARGS
+
+    # a well-spaced primary extraction is never re-extracted
+    seen.clear()
+    monkeypatch.setattr(ingest, "_pypdf_pages", lambda p: spaced)
+    pages, engine = ingest._extract_pdf(Path("well-formed.pdf"))
+    assert (pages, engine) == (spaced, "pypdf")
+    assert seen == {}
+
+
+def test_bundle_reports_the_engine_that_read_the_main_text():
+    """A bundled parse must not relabel its extractor: the stamp is provenance,
+    and a supplement merge previously reset it to the module default."""
+    sm = parse_text(FAKE_PAPER, manuscript_id="m")
+    sm.extractor_version = "target-mcp-ingest/9.9.9 (some-engine)"
+    bundled = build_bundle(sm, [("s.pdf", "eTable 1. Codes", 2)], "user_provided")
+    assert bundled.extractor_version == "target-mcp-ingest/9.9.9 (some-engine)"
+
+
 def test_out_of_order_layout_still_fully_assessed():
     # Methods printed AFTER Discussion (accepted-manuscript proof): the sectioner
     # drops the out-of-order Methods heading, but a substantial body still unlocks
