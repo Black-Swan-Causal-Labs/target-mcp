@@ -122,7 +122,17 @@ def _split_unheaded_introduction(full_text: str, start: int, end: int) -> int | 
 
     for i in range(last_marker + 1, len(lines)):
         prev, cur = lines[i - 1].rstrip(), lines[i].strip()
-        if prev.endswith(".") and len(cur) >= 40 and cur[:1].isupper():
+        nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        # An ordinary paragraph start: a capital opening a line, after a line
+        # that closed a sentence.
+        ordinary = prev.endswith(".") and len(cur) >= 40 and cur[:1].isupper()
+        # A drop cap: the first letter is set large and extracts alone on its
+        # own line, with the rest of the word following in lower case
+        # ("U" / "terine fibroids are common..."). Common in Elsevier titles,
+        # and a strong paragraph signal precisely because it opens a section.
+        dropcap = (len(cur) == 1 and cur.isupper() and cur.isalpha()
+                   and nxt[:1].islower())
+        if ordinary or dropcap:
             cut = start + offsets[i]
             if (cut - start) < _MIN_ABSTRACT or (end - cut) < _MIN_UNHEADED_INTRO:
                 return None

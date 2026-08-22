@@ -77,7 +77,17 @@ noninferiority…" — plainly introduction prose.
   queued PDFs, 3 recover their introduction (42509157, 42155916, 41713828), 1
   already had a real heading (42061686), and 1 (41834103) finds no confident
   boundary and is left exactly as before — the conservative fallback.
-- Status: done, 49 tests (3 new). **Not yet released** — see the open question in
+- **Follow-up (same day), drop caps:** the first cut rule landed a paragraph late
+  on PMID 42155916 (*Fertil Steril*), leaving the introduction's opening
+  paragraph inside the abstract. Cause: Elsevier sets a section's first letter
+  large, and it extracts alone on its own line — `"U"` then
+  `"terine fibroids (leiomyomas) are common..."`. A lone capital followed by a
+  lower-case continuation is now recognised as a paragraph start, which is a
+  strong signal precisely because a drop cap opens a section. A test pins the
+  converse: a lone capital followed by an UPPER-case line (an author initial,
+  `"J" / "DiTosto"`) must not be read as one. This also improved 41713828, whose
+  introduction opens `"C" / "alculous biliary diseases..."`.
+- Status: done, 53 tests (5 new). **Not yet released** — see the open question in
   the 0.1.3 entry below.
 
 ---

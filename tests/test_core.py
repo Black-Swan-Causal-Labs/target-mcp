@@ -619,3 +619,54 @@ def test_repair_does_not_invent_headings():
     sm = parse_text(text, manuscript_id="no-invent")
     assert [s.name for s in sm.sections].count("results") == 1
     assert all(s.heading != "Randomisation" for s in sm.sections)
+
+
+_DROPCAP_PAPER = """Abstract
+Background: We studied fibroid surgery and cardiovascular disease.
+Conclusions: Myomectomy was not strongly associated with atherosclerotic CVD.
+Key Words: uterine fibroids, target trial emulation, cardiovascular disease
+U
+terine fibroids are common benign gynecologic tumors affecting over 26 million
+reproductive-aged individuals in the United States. Atherosclerotic disease is
+the leading cause of death among women, and fibroids have been associated with
+higher risk even after controlling for conventional risk factors. Proposed
+mechanisms include smooth muscle cell proliferation and hormonal alterations
+that may accelerate atherosclerosis through systemic inflammation. Whether
+surgical removal alters that risk has not been established, and we therefore
+emulated a target trial to estimate it in a nationwide claims cohort of
+reproductive-aged individuals with newly diagnosed uterine fibroids. Prior
+observational analyses have compared surgical and expectant management without
+aligning eligibility, treatment assignment, and the start of follow-up, leaving
+them open to immortal time bias and to confounding by indication that varies
+with age and comorbidity burden. Emulating a target trial makes those choices
+explicit and lets the analysis address the question a randomised trial would
+have answered, which is what we set out to do here for myomectomy and for
+hysterectomy without oophorectomy, estimating five-year risk in each arm.
+MATERIALS AND METHODS
+We used deidentified claims data and defined time zero at diagnosis.
+RESULTS
+Myomectomy was not strongly associated with the outcome.
+DISCUSSION
+These associations warrant further investigation.
+"""
+
+
+def test_dropcap_marks_the_start_of_an_unheaded_introduction():
+    # Elsevier sets the first letter of a section large; it extracts alone on
+    # its own line ("U" / "terine fibroids are..."). Without recognising that,
+    # the cut lands a paragraph or two late and introduction prose is reported
+    # as abstract.
+    sm = parse_text(_DROPCAP_PAPER, manuscript_id="dropcap")
+    intro = next(s for s in sm.sections if s.name == "introduction")
+    assert sm.full_text[intro.start:].startswith("U\nterine fibroids are common")
+    abstract = next(s for s in sm.sections if s.name == "abstract")
+    assert "terine fibroids are common" not in sm.full_text[abstract.start:abstract.end]
+
+
+def test_lone_capital_is_not_a_dropcap_when_followed_by_a_capital():
+    # An initial in an author line ("J\nDiTosto") must not be read as a drop cap.
+    text = ("Abstract\nShort abstract text goes here.\nKeywords: one; two\n"
+            "J\nDiTosto and colleagues previously reported this.\n"
+            "Methods\nWe did things.\n")
+    sm = parse_text(text, manuscript_id="not-a-dropcap")
+    assert "introduction" not in [s.name for s in sm.sections]
