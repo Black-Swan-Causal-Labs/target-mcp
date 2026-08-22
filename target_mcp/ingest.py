@@ -39,7 +39,7 @@ CANONICAL_SECTIONS = ("abstract", "introduction", "methods", "results", "discuss
 _HEADING_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("abstract", re.compile(r"^\s*abstract\s*$", re.IGNORECASE)),
     ("introduction", re.compile(r"^\s*(?:\d+\.?\s*)?(introduction|background)\s*$", re.IGNORECASE)),
-    ("methods", re.compile(r"^\s*(?:\d+\.?\s*)?(methods?|materials and methods|patients and methods|study design and methods)\s*$", re.IGNORECASE)),
+    ("methods", re.compile(r"^\s*(?:\d+\.?\s*)?(methods?|materials and methods|methods and materials|patients and methods|participants and methods|subjects and methods|study design and methods)\s*$", re.IGNORECASE)),
     ("results", re.compile(r"^\s*(?:\d+\.?\s*)?results?\s*$", re.IGNORECASE)),
     ("discussion", re.compile(r"^\s*(?:\d+\.?\s*)?(discussion|comment)\s*$", re.IGNORECASE)),
     ("other", re.compile(r"^\s*(?:\d+\.?\s*)?(references|acknowledg(e)?ments?|funding|declarations|supplementary (material|information))\s*$", re.IGNORECASE)),

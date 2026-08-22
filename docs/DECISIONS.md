@@ -7,6 +7,46 @@ Format: **what** — why — status.
 
 ---
 
+## 2026-08-22 · Section detector's methods vocabulary was missing "Participants and Methods"
+A real run on a Wiley paper (PMC13369797, *Pharmacoepidemiol Drug Saf*) returned
+`Sections not detected: ['methods']`, with `introduction` spanning 17,710 chars —
+it had swallowed the entire Methods section.
+- **Root cause:** the methods entry in `_HEADING_PATTERNS` (`ingest.py:42`)
+  matched only `methods` / `materials and methods` / `patients and methods` /
+  `study design and methods`. The paper heads its methods **"Participants and
+  Methods"**. The heading vocabulary is a closed list and this variant was absent.
+- **Fix:** added `participants and methods`, `subjects and methods`, and
+  `methods and materials` to the alternation.
+- **Why not normalize the heading upstream in the extractor:** `Section.heading`
+  carries the paper's literal heading text and feeds the rendered checklist's
+  Location column. Rewriting "Participants and Methods" → "Methods" in an
+  extractor would make the artifact of record misreport the paper. The defect was
+  in the reader's vocabulary, not in the document.
+- **Blast radius checked, not assumed:** patched and unpatched `ingest.py` were
+  loaded side by side and used to parse the three papers then in flight. Two
+  (PMC12784257, PMC13288736) produced **byte-identical section maps**; the third
+  gained `('methods', 'Participants and Methods')` and cleared its warning. All
+  three produced **identical `text_sha256`** — section detection does not feed the
+  hash, so no already-scored assessment is disturbed and no re-scoring is implied.
+  46 tests pass.
+- **Consequence for scoring, worth knowing:** `assess.py::_manuscript_block`
+  embeds `<<SECTION {name} — {heading}>>` markers in `user_content`, so a
+  mis-segmented parse doesn't merely mislabel the Location column — it hands the
+  scoring model a mislabeled manuscript. This class of bug is silent and belongs
+  in the "fix before scoring, don't score around it" category.
+- **Operational note for anyone fixing ingestion:** a long-lived MCP server
+  process holds `target_mcp` already imported and will NOT pick up the edit
+  without a reconnect. Verify through a fresh process (the batch harness added
+  `bin/scaffold.py` for exactly this).
+- **Open question — INGEST_VERSION:** left at 0.3.0. The change alters the section
+  map but not extracted text or hashes, so it is not an extraction change in the
+  sense the stamp was designed to track; bumping it would also make future
+  re-renders of already-issued checklists carry a different stamp for identical
+  text. Flagging rather than deciding unilaterally.
+- Status: done in-tree, **uncommitted**, not released. PyPI still ships 0.1.2.
+
+---
+
 ## 2026-08-18 · Ingestion repairs lost word boundaries; the bundle stamp tells the truth
 A real run on a JAMA Network Open paper rendered every evidence quote as
 run-together text (`Weconductedacomparativeeffectivenessstudy`). That publisher
