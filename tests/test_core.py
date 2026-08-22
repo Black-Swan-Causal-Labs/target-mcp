@@ -500,3 +500,81 @@ def test_citation_from_jats_builds_apa():
     # best-effort: garbage in, empty string out (never raises)
     assert citation_from_jats(b"<not-jats/>") == ""
     assert citation_from_jats(b"broken <<<") == ""
+
+
+# --- unheaded introduction (journals that print no "Introduction" heading) ---
+
+_BJA_STYLE = """Abstract
+Background: Virtual care is increasingly used for preoperative assessment.
+Methods: We conducted a retrospective observational study using a target trial
+emulation framework.
+Conclusions: The study was inconclusive with respect to major morbidity.
+Keywords : causal inference; epidemiology; preoperative assessment
+Received: 26 January 2026; Accepted: 30 June 2026
+© 2026 The Authors. Published by Elsevier Ltd on behalf of the journal. This is
+an open access article under the CC BY license.
+doi: 10.1016/j.example.2026.06.012
+Editor's key points
+• Virtual consultations became common during the pandemic and studies
+comparing outcomes were lacking.
+• Readers should be cautious in drawing causal inferences from these studies.
+Perioperative care has widespread impacts on the millions of patients who
+undergo surgery annually, their families, and the health care system. More than
+20% of surgical patients experience complications or impaired recovery, and the
+perioperative period can be stressful for families because of healthcare visits,
+testing, and coordination of postoperative care. Therefore, strategies that
+mitigate these burdens are a research priority, and we conducted an
+observational comparative effectiveness study using the target trial emulation
+framework to address it. Surgery also consumes substantial healthcare resources,
+with costs exceeding $US 25 000 per case and complications contributing an
+additional $US 20 000 or more per patient episode. Environmentally, surgical care
+contributes markedly to carbon emissions, and this impact excludes emissions from
+transportation to and from preoperative appointments. Optimising preoperative
+assessment was identified through patient and public partnership as a top ten
+priority in perioperative research, and the variable uptake of virtual care
+created a natural experiment that can be leveraged to evaluate virtual versus
+in-person consultations. Our objectives were to estimate clinical noninferiority
+and to estimate potential population-level reductions in carbon emissions.
+Methods
+We emulated a target trial of virtual versus in-person consultation.
+Results
+Ninety-day morbidity did not differ between groups.
+Discussion
+The study was inconclusive about noninferiority.
+"""
+
+
+def test_unheaded_introduction_is_split_from_abstract():
+    sm = parse_text(_BJA_STYLE, manuscript_id="bja-style")
+    names = [s.name for s in sm.sections]
+    assert "introduction" in names, "unheaded introduction should be recovered"
+    assert names.index("abstract") < names.index("introduction") < names.index("methods")
+
+    intro = next(s for s in sm.sections if s.name == "introduction")
+    # The introduction begins at its real first sentence — not mid-licence and
+    # not at the key-points box, which stays with the abstract.
+    assert sm.full_text[intro.start:].startswith("Perioperative care has widespread")
+    assert "Editor's key points" not in sm.full_text[intro.start:intro.end]
+    assert "CC BY license" not in sm.full_text[intro.start:intro.end]
+    # It carries no heading, because the paper prints none: reporting one would
+    # misstate where the content lives.
+    assert intro.heading == ""
+
+    # The abstract keeps its own heading and its front matter.
+    abstract = next(s for s in sm.sections if s.name == "abstract")
+    assert abstract.heading == "Abstract"
+    assert "Keywords" in sm.full_text[abstract.start:abstract.end]
+
+
+def test_explicit_introduction_heading_is_left_alone():
+    sm = parse_text(FAKE_PAPER, manuscript_id="fake-2")
+    intro = next(s for s in sm.sections if s.name == "introduction")
+    assert intro.heading != "", "a real heading must be preserved, not blanked"
+
+
+def test_no_split_without_a_confident_boundary():
+    # Abstract terminators present but nothing that reads as a paragraph start:
+    # the map is left exactly as it was rather than guessed at.
+    text = "Abstract\nA short abstract.\nKeywords : one; two\nMethods\nWe did things.\n"
+    sm = parse_text(text, manuscript_id="stub")
+    assert "introduction" not in [s.name for s in sm.sections]

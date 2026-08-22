@@ -45,6 +45,78 @@ _HEADING_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("other", re.compile(r"^\s*(?:\d+\.?\s*)?(references|acknowledg(e)?ments?|funding|declarations|supplementary (material|information))\s*$", re.IGNORECASE)),
 ]
 
+# Some journals (British Journal of Anaesthesia among them) print no
+# "Introduction" heading at all: the introduction simply follows the abstract's
+# closing front matter. With no heading to match, the abstract section runs on
+# and swallows it — which both mislabels the Location column and, worse, hands
+# the scoring model introduction prose under an <<SECTION abstract>> marker,
+# where it can be mistaken for the abstract items the checklist asks about.
+# These patterns mark where the abstract's front matter ends; whatever follows,
+# up to the first detected body heading, is the unheaded introduction.
+_ABSTRACT_TERMINATORS = re.compile(
+    r"^\s*(?:key\s?words?\b"
+    r"|received:\s"
+    r"|(?:©|\(c\)|copyright)\s*\d{4}"
+    r"|this is an open access article"
+    r"|published by elsevier)",
+    re.IGNORECASE,
+)
+# Below these the split is not worth making: too little left to be a real
+# introduction, or too little kept to be a real abstract.
+_MIN_UNHEADED_INTRO = 800
+_MIN_ABSTRACT = 200
+
+# Front matter that can sit between the abstract and an unheaded introduction:
+# a wrapped licence line, the running masthead, and boxes some journals print
+# (BJA's "Editor's key points"). Any of these means the introduction has not
+# started yet.
+_FRONT_MATTER_LINE = re.compile(
+    r"(doi:|https?://|@|©|\(c\)\s*\d{4}|advance access|permissions|licenses?/by"
+    r"|^\s*[•▪·]|key points)",
+    re.IGNORECASE,
+)
+
+
+def _split_unheaded_introduction(full_text: str, start: int, end: int) -> int | None:
+    """Offset where an unheaded introduction begins inside [start, end), or None.
+
+    Journals such as the British Journal of Anaesthesia print no "Introduction"
+    heading, so the abstract section runs on and swallows the introduction. With
+    no heading to detect, the boundary is found structurally:
+
+    1. scan forward to the LAST front-matter line — an abstract terminator
+       (Keywords / Received / copyright), a masthead or licence fragment, or a
+       bullet from a key-points box;
+    2. from there, take the first paragraph start — a line opening with a
+       capital after a line that closed a sentence.
+
+    Everything before the cut (front matter and any journal-produced key-points
+    box) stays with the abstract, which is the closest canonical section for it.
+    Returns None when no confident boundary exists, leaving the map unchanged.
+    """
+    lines = full_text[start:end].split("\n")
+    offsets, off = [], 0
+    for line in lines:
+        offsets.append(off)
+        off += len(line) + 1
+
+    last_marker = None
+    for i, line in enumerate(lines):
+        if _ABSTRACT_TERMINATORS.match(line) or _FRONT_MATTER_LINE.search(line):
+            last_marker = i
+    if last_marker is None:
+        return None
+
+    for i in range(last_marker + 1, len(lines)):
+        prev, cur = lines[i - 1].rstrip(), lines[i].strip()
+        if prev.endswith(".") and len(cur) >= 40 and cur[:1].isupper():
+            cut = start + offsets[i]
+            if (cut - start) < _MIN_ABSTRACT or (end - cut) < _MIN_UNHEADED_INTRO:
+                return None
+            return cut
+    return None
+
+
 _PROTOCOL_TABLE_RE = re.compile(
     r"(target\s+trial\s+(specification|protocol)|specification\s+and\s+emulation"
     r"|emulation\s+of\s+the\s+target\s+trial).{0,400}?(table|tab\.)"
@@ -400,6 +472,18 @@ def _build_map(full_text: str, source: str, manuscript_id: str, n_pages: int | N
         for i, (off, canonical, heading) in enumerate(ordered):
             end = ordered[i + 1][0] if i + 1 < len(ordered) else len(full_text)
             sections.append(Section(canonical, heading, off, end))
+
+    # An abstract that ran on because the journal prints no "Introduction"
+    # heading: split it rather than report introduction content as abstract.
+    if "abstract" in {x.name for x in sections} and "introduction" not in {x.name for x in sections}:
+        for i, sec in enumerate(sections):
+            if sec.name != "abstract":
+                continue
+            cut = _split_unheaded_introduction(full_text, sec.start, sec.end)
+            if cut is not None:
+                sections[i] = Section("abstract", sec.heading, sec.start, cut)
+                sections.insert(i + 1, Section("introduction", "", cut, sec.end))
+            break
 
     missing = [s for s in ("abstract", "methods", "results") if s not in {x.name for x in sections}]
     if missing:

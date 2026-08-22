@@ -7,6 +7,50 @@ Format: **what** — why — status.
 
 ---
 
+## 2026-08-22 · Journals that print no "Introduction" heading had it swallowed by the abstract
+Parsing the British Journal of Anaesthesia PDF for PMID 42509157 produced **no
+warnings** but a section map with no `introduction`: the abstract section ran
+7,320 chars and ended on "Our objectives were to estimate clinical
+noninferiority…" — plainly introduction prose.
+- **Root cause:** the word "Introduction" appears nowhere in the PDF. BJA house
+  style runs the introduction unheaded after the abstract's front matter. The
+  detector opens a section only on a heading, so there was nothing to match.
+  This is NOT the closed-list problem fixed earlier the same day — widening the
+  heading vocabulary cannot detect a heading that does not exist.
+- **Why it mattered more than a mislabel:** `assess.py::_manuscript_block` emits
+  `<<SECTION abstract>>` around that text, and TARGET items 1a/1b are *abstract*
+  items. A scorer could credit an abstract requirement using introduction prose —
+  a wrong verdict, not merely a wrong Location.
+- **Fix:** `_split_unheaded_introduction` in `ingest.py`. When an `abstract` is
+  present and `introduction` is not, find the last front-matter line in the
+  abstract span (Keywords / Received / copyright / licence / masthead / a
+  key-points bullet) and cut at the first paragraph start after it — a line
+  opening with a capital following a line that closed a sentence. Below 800
+  chars of introduction or 200 chars of retained abstract, no split is made.
+- **What stays with the abstract, deliberately:** journal front matter and any
+  key-points box. Of the canonical sections, `abstract` is the closest fit for
+  journal-produced summary content, and the alternative — inventing a heading —
+  is what the 2026-08-22 methods-heading entry rules out.
+- **The introduction gets `heading == ""`,** because the paper prints none.
+  Reporting a heading the document does not have would misstate the Location
+  column; an empty heading says "unheaded run", which is the truth. This matches
+  the existing front-matter-as-abstract behaviour.
+- **No warning is emitted.** In this pipeline a warning means "fix ingestion
+  before scoring" and aborts `bin/scaffold.py`; a successful split is not a
+  defect. The recovered section is visible in the section map the operator
+  already reads.
+- **Blast radius checked, not assumed:** patched and unpatched `ingest.py` were
+  loaded side by side against all 10 completed papers — **10/10 byte-identical
+  section maps and identical `text_sha256`**, including Hamad, the one completed
+  paper scored from a publisher PDF. No issued assessment is disturbed. Of the 5
+  queued PDFs, 3 recover their introduction (42509157, 42155916, 41713828), 1
+  already had a real heading (42061686), and 1 (41834103) finds no confident
+  boundary and is left exactly as before — the conservative fallback.
+- Status: done, 49 tests (3 new). **Not yet released** — see the open question in
+  the 0.1.3 entry below.
+
+---
+
 ## 2026-08-22 · Section detector's methods vocabulary was missing "Participants and Methods"
 A real run on a Wiley paper (PMC13369797, *Pharmacoepidemiol Drug Saf*) returned
 `Sections not detected: ['methods']`, with `introduction` spanning 17,710 chars —
