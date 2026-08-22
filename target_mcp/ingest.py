@@ -45,6 +45,19 @@ _HEADING_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("other", re.compile(r"^\s*(?:\d+\.?\s*)?(references|acknowledg(e)?ments?|funding|declarations|supplementary (material|information))\s*$", re.IGNORECASE)),
 ]
 
+# Glyph-positioned PDFs sometimes strand a heading's leading capital from the
+# rest of the word ("R esults"), which no amount of heading vocabulary will
+# match. Repairing a stranded single letter is undoing OUR extraction artifact,
+# not rewriting the document: the page prints "Results". The repaired form is
+# only ever used to TEST a heading candidate, and is recorded only when it then
+# matches the closed vocabulary — so ordinary prose cannot be rewritten by it.
+_SPLIT_LETTER = re.compile(r"\b([A-Za-z])\s+(?=[a-z]{2,})")
+
+
+def _repair_split_letters(line: str) -> str:
+    return _SPLIT_LETTER.sub(r"\1", line)
+
+
 # Some journals (British Journal of Anaesthesia among them) print no
 # "Introduction" heading at all: the introduction simply follows the abstract's
 # closing front matter. With no heading to match, the abstract section runs on
@@ -434,9 +447,13 @@ def _build_map(full_text: str, source: str, manuscript_id: str, n_pages: int | N
     for line in full_text.split("\n"):
         stripped = line.strip()
         if stripped and len(stripped) <= 60:
+            repaired = _repair_split_letters(stripped)
             for canonical, pat in _HEADING_PATTERNS:
                 if pat.match(stripped):
                     boundaries.append((offset, canonical, stripped))
+                    break
+                if repaired != stripped and pat.match(repaired):
+                    boundaries.append((offset, canonical, repaired))
                     break
         offset += len(line) + 1
 

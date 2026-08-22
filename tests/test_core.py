@@ -578,3 +578,44 @@ def test_no_split_without_a_confident_boundary():
     text = "Abstract\nA short abstract.\nKeywords : one; two\nMethods\nWe did things.\n"
     sm = parse_text(text, manuscript_id="stub")
     assert "introduction" not in [s.name for s in sm.sections]
+
+
+# --- headings whose leading capital was stranded by PDF glyph positioning ---
+
+_SPLIT_HEADING_PAPER = """Abstract
+We emulated a target trial of vaccination versus no vaccination.
+Introduction
+Reinfection after vaccination remains poorly characterised in this population,
+and no prior study has emulated a target trial to address it.
+Methods
+We used a nationwide claims database and defined time zero at the index date.
+R esults
+Among 12 000 patients, reinfection risk was 5.2% versus 7.9%.
+Discussion
+Bivalent vaccination meaningfully reduced reinfection risk.
+"""
+
+
+def test_heading_with_stranded_capital_is_detected():
+    sm = parse_text(_SPLIT_HEADING_PAPER, manuscript_id="split-heading")
+    names = [s.name for s in sm.sections]
+    assert "results" in names, "'R esults' is an extraction artifact, not a missing section"
+    assert "Sections not detected" not in " ".join(sm.warnings)
+    # Methods must stop where Results begins rather than swallowing it.
+    methods = next(s for s in sm.sections if s.name == "methods")
+    assert "reinfection risk was 5.2%" not in sm.full_text[methods.start:methods.end]
+    # The recorded heading is the repaired form: the page prints "Results",
+    # the stray space is ours.
+    results = next(s for s in sm.sections if s.name == "results")
+    assert results.heading == "Results"
+
+
+def test_repair_does_not_invent_headings():
+    # A stranded letter that does not resolve to the closed vocabulary must not
+    # become a section boundary.
+    text = ("Abstract\nShort abstract.\nMethods\nWe did things.\n"
+            "R andomisation\nNot a canonical section heading.\n"
+            "Results\nNumbers here.\n")
+    sm = parse_text(text, manuscript_id="no-invent")
+    assert [s.name for s in sm.sections].count("results") == 1
+    assert all(s.heading != "Randomisation" for s in sm.sections)

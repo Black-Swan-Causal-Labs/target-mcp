@@ -7,6 +7,37 @@ Format: **what** — why — status.
 
 ---
 
+## 2026-08-22 · A heading whose leading capital was stranded by PDF glyph positioning
+Parsing PMID 42061686 (*J Infect*, Elsevier) warned `Sections not detected:
+['results']`, with `methods` spanning 18,741 chars — it had swallowed Results.
+- **Root cause:** the heading extracts as **`"R esults"`**. Elsevier positions
+  glyphs individually and this one stranded the capital from the rest of the
+  word. The heading vocabulary cannot match it, and unlike the two earlier
+  heading defects this is not a vocabulary gap at all — the page prints
+  "Results".
+- **Fix:** `_repair_split_letters` removes a stranded single letter before a
+  heading candidate is tested. The repaired form is used ONLY to test the
+  candidate, and is recorded only if it then matches the closed vocabulary, so
+  the repair cannot rewrite prose or invent a section.
+- **Why the repaired heading is recorded, not the literal:** the earlier rule —
+  never rewrite a paper's heading, because `Section.heading` feeds the Location
+  column — is about headings the paper really prints. `"R esults"` is OUR
+  extraction artifact. Recording it would make the artifact of record report a
+  typographical error the journal never made; recording `"Results"` reports what
+  the page says.
+- **Blast radius checked:** patched vs HEAD across all 12 completed-paper inputs
+  (10 JATS/text mains plus Hamad's two publisher PDFs) — identical section maps
+  and identical `text_sha256`. Of the 5 queued PDFs only 42061686 changes. 51
+  tests (2 new), including one asserting a stranded capital that does NOT
+  resolve to the vocabulary ("R andomisation") never becomes a boundary.
+- **Related harness change:** `bin/scaffold.py` aborted on ANY parse warning.
+  `"No 'Abstract' heading; front matter mapped as abstract"` is informational —
+  common in publisher PDFs and the correct reading — so it now prints as a note
+  and only genuine warnings block. `Sections not detected` still aborts.
+- Status: done, unreleased. Rides with whatever carries the introduction fix.
+
+---
+
 ## 2026-08-22 · Journals that print no "Introduction" heading had it swallowed by the abstract
 Parsing the British Journal of Anaesthesia PDF for PMID 42509157 produced **no
 warnings** but a section map with no `introduction`: the abstract section ran
