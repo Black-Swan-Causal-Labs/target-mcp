@@ -43,7 +43,8 @@ it had swallowed the entire Methods section.
   sense the stamp was designed to track; bumping it would also make future
   re-renders of already-issued checklists carry a different stamp for identical
   text. Flagging rather than deciding unilaterally.
-- Status: done in-tree, **uncommitted**, not released. PyPI still ships 0.1.2.
+- Status: **shipped in 0.1.3** (2026-08-22). Committed as `4e10b21`, merged via
+  PR #2. INGEST_VERSION deliberately left at 0.3.0 per the open question above.
 
 ---
 
@@ -76,8 +77,8 @@ pdfplumber-at-default return spaceless text.
 - **Consequence:** ingested text changes → `text_sha256` and the provenance stamp
   change. Re-issuing an earlier assessment yields a new stamp with identical
   verdicts; that is correct, not drift.
-- Status: done in-tree, `INGEST_VERSION` 0.2.0 → 0.3.0, 46 tests. **Not released** —
-  PyPI still ships 0.1.2 with the old ingestion.
+- Status: **shipped in 0.1.3** (2026-08-22), `INGEST_VERSION` 0.2.0 → 0.3.0, 46
+  tests. It sat unreleased in-tree from 2026-08-18 until 0.1.3 carried it out.
 
 ## 2026-07-20 · Launched: Apache-2.0, PyPI, DNS-namespaced MCP registry
 Went public on GitHub + PyPI (`target-mcp`) + the MCP registry

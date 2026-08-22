@@ -1,11 +1,11 @@
 # Status & handoff
 
-Snapshot for picking the project back up cold. Last updated 2026-08-18.
+Snapshot for picking the project back up cold. Last updated 2026-08-22.
 
 ## 🚀 LAUNCHED (2026-07-20) — public on all three surfaces
 
 - **GitHub:** https://github.com/Black-Swan-Causal-Labs/target-mcp (public, Apache-2.0)
-- **PyPI:** `target-mcp` — `pip install target-mcp` (current **0.1.2**)
+- **PyPI:** `target-mcp` — `pip install target-mcp` (current **0.1.3**, 2026-08-22)
 - **MCP registry:** `com.blackswancausallabs/target-mcp` (title "TARGET Checklist MCP"),
   published under the BSCL **DNS-verified** namespace (same as `dagstudio-mcp`).
 
@@ -186,12 +186,14 @@ parameter, which `run_judge` omits.
 
 ## Watch-outs
 
-- **Unreleased ingestion fix in tree (2026-08-18):** `INGEST_VERSION` 0.3.0 adds
-  the word-boundary repair for glyph-positioned PDFs (see DECISIONS.md). PyPI
-  still ships **0.1.2 without it**, so a published-package user hitting such a
-  PDF still gets unreadable evidence quotes — ship it with the next version bump.
-  A *running* MCP server also holds the old module: reconnect the client for the
-  fix to take effect in-session.
+- **0.1.3 (2026-08-22) carried out two fixes that had been sitting unreleased:**
+  the word-boundary repair for glyph-positioned PDFs (`INGEST_VERSION` 0.3.0,
+  2026-08-18) and the "Participants and Methods" heading variants (2026-08-22).
+  Both are in DECISIONS.md. `INGEST_VERSION` stays 0.3.0 — the heading change
+  alters the section map but not extracted text or hashes.
+  A *running* MCP server holds the old module: reconnect the client for any
+  ingestion fix to take effect in-session, and `pip install -U target-mcp` for
+  published-package users.
 - Output-schema TypedDicts must stay `total=False` with `| None` on nullable
   fields; the SDK strictly validates returns.
 - The tool scores reporting completeness, not study quality, and makes no
