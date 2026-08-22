@@ -89,6 +89,14 @@ it had swallowed the entire Methods section.
   text. Flagging rather than deciding unilaterally.
 - Status: **shipped in 0.1.3** (2026-08-22). Committed as `4e10b21`, merged via
   PR #2. INGEST_VERSION deliberately left at 0.3.0 per the open question above.
+- **OPEN QUESTION — what 0.1.3 should contain.** 0.1.3 was version-bumped, built
+  and pushed to GitHub, but the PyPI upload is still pending a token, so nothing
+  has been distributed and the version number is not yet immutable. The
+  unheaded-introduction fix (entry above) landed afterwards. Either fold it into
+  0.1.3 and REBUILD `dist/` before uploading, or leave 0.1.3 as built and cut
+  0.1.4. Uploading the existing `dist/target_mcp-0.1.3*` artifacts as-is would
+  publish a 0.1.3 that lacks the introduction fix. User's call; do not upload
+  the stale artifacts by accident.
 
 ---
 
